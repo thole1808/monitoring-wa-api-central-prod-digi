@@ -243,7 +243,7 @@ export default function Home() {
                     </div>
                     
                     <form onSubmit={startMonitoring} className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                        <div className="relative group">
+                        <div className="relative group flex-1 sm:flex-none">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Phone className="h-5 w-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
                             </div>
@@ -252,39 +252,14 @@ export default function Home() {
                                 value={targetNumber}
                                 onChange={(e) => setTargetNumber(e.target.value)}
                                 placeholder="Target Number" 
-                                className="flex-1 w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm"
+                                className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm"
                             />
-                        </div>
-
-                        <div className="flex gap-2 items-center">
-                            <input 
-                                type="number" 
-                                min="5" 
-                                max="300" 
-                                value={autoInterval}
-                                onChange={(e) => setAutoInterval(parseInt(e.target.value) || 30)}
-                                disabled={isAutoMonitoring}
-                                placeholder="Interval (s)" 
-                                className="w-20 bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm disabled:opacity-50"
-                            />
-                            <button 
-                                type="button" 
-                                onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
-                                className={`flex-none whitespace-nowrap flex items-center justify-center gap-2 text-white text-sm font-medium px-3 py-2.5 rounded-md transition-shadow shadow-sm ${
-                                    isAutoMonitoring 
-                                        ? 'bg-emerald-600 hover:bg-emerald-500' 
-                                        : 'bg-slate-700 hover:bg-slate-600'
-                                }`}
-                            >
-                                <div className={isAutoMonitoring ? "w-2 h-2 bg-white rounded-full animate-pulse" : "w-2 h-2 bg-slate-400 rounded-full"}></div>
-                                {isAutoMonitoring ? 'Auto: ON' : 'Auto: OFF'}
-                            </button>
                         </div>
                             
                         <button 
                             type="submit" 
                             disabled={isMonitoring}
-                                className="self-start flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-3 py-2.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
+                            className="flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-4 py-2.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
                         >
                             {isMonitoring ? (
                                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -342,6 +317,64 @@ export default function Home() {
                         <div>
                             <p className="text-slate-400 text-sm font-medium">Delay</p>
                             <p className="text-2xl font-bold text-white">{stats.delay}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Realtime Dashboard */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+                    {/* Live Services Status */}
+                    <div className="lg:col-span-2 bg-slate-900/60 border border-slate-700/50 rounded-xl p-5 backdrop-blur-xl shadow-lg">
+                        <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                            Live Service Status
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            {SERVICES.map(service => {
+                                const sState = serviceState[service.port];
+                                const statusColor = 
+                                    sState.status === 'SUCCESS' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
+                                    sState.status === 'FAILED' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
+                                    sState.status === 'DELAY' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' :
+                                    sState.status === 'RUNNING' ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' :
+                                    'bg-slate-500/20 border-slate-500/50 text-slate-300';
+                                
+                                const statusIcon = 
+                                    sState.status === 'SUCCESS' ? '✓' :
+                                    sState.status === 'FAILED' ? '✗' :
+                                    sState.status === 'DELAY' ? '⏳' :
+                                    sState.status === 'RUNNING' ? '◉' : '◯';
+                                
+                                return (
+                                    <div key={service.port} className={`border rounded-lg p-3 text-center transition-all ${statusColor}`}>
+                                        <div className="text-xl font-bold">{statusIcon}</div>
+                                        <p className="text-xs font-semibold mt-1 truncate">{service.name}</p>
+                                        <p className="text-[10px] opacity-75 mt-0.5">:{service.port}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Last Update Info */}
+                    <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-5 backdrop-blur-xl shadow-lg">
+                        <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                            Quick Stats
+                        </h3>
+                        <div className="space-y-3">
+                            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
+                                <p className="text-[10px] text-emerald-300 uppercase font-bold">Success</p>
+                                <p className="text-2xl font-bold text-emerald-400">{stats.success}</p>
+                            </div>
+                            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                                <p className="text-[10px] text-red-300 uppercase font-bold">Failed</p>
+                                <p className="text-2xl font-bold text-red-400">{stats.failed}</p>
+                            </div>
+                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                                <p className="text-[10px] text-amber-300 uppercase font-bold">Delay</p>
+                                <p className="text-2xl font-bold text-amber-400">{stats.delay}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
