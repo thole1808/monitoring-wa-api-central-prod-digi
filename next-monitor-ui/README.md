@@ -1,6 +1,6 @@
-WA API Central Monitor — Digi Transaksi Production
+WA Central — Digi Transaksi
 
-Real-time status monitoring untuk WhatsApp Gateway API.
+Status real-time WhatsApp Gateway
 
 Purpose
 -------
@@ -20,15 +20,81 @@ npm run dev
 
 2. Open http://localhost:3000 to view the dashboard.
 
-Notes
------
+Production build (local)
+------------------------
 
-- This dashboard is intended to consume monitoring endpoints (SSE/WebSocket/REST) from the WA Gateway or a collector service.
-- Customize `src/app/api/monitor/route.js` to point to your monitoring source or proxy.
-- Consider deploying on Vercel or any Node-friendly host for production dashboards.
+Build and run locally (production mode):
+
+```bash
+cd next-monitor-ui
+npm install
+npm run build
+npm start
+```
+
+Docker build & run
+------------------
+
+Build the Docker image (example):
+
+```bash
+docker build -t wa-next:latest -f next-monitor-ui/Dockerfile ./next-monitor-ui
+```
+
+Run the container (serve on host port 3000):
+
+```bash
+docker run --rm -p 3000:3000 \
+	-e NODE_ENV=production \
+	-v "$PWD/next-monitor-ui/.next:/app/.next" \
+	wa-next:latest
+```
+
+If you use an `.env.local` file for secrets, do NOT copy it into an image. Provide at runtime:
+
+```bash
+docker run --rm -p 3000:3000 \
+	--env-file next-monitor-ui/.env.local \
+	wa-next:latest
+```
+
+Docker Compose (quick example)
+------------------------------
+
+Create a `docker-compose.yml` at repository root with this minimal example:
+
+```yaml
+version: '3.8'
+services:
+	wa-next:
+		build:
+			context: ./next-monitor-ui
+			dockerfile: Dockerfile
+		image: wa-next:latest
+		ports:
+			- "3000:3000"
+		environment:
+			- NODE_ENV=production
+		restart: unless-stopped
+```
+
+Then run:
+
+```bash
+docker-compose up -d --build
+```
+
+Notes & Best Practices
+----------------------
+
+- The `next-monitor-ui/Dockerfile` is a multi-stage build (build + runner). It expects `npm run build` to produce a production Next.js output.
+- Keep secrets out of images; prefer `--env-file`, Docker secrets, or a runtime secret manager.
+- If you want automatic HTTPS or reverse-proxy features, run behind Nginx/Traefik or deploy to a platform that provides TLS (Vercel, Fly, etc.).
+- If you need, I can add a `docker-compose.yml` that runs both `monitor-ui` and `next-monitor-ui`, or add a healthcheck and non-root user to the Dockerfile.
 
 Resources
 ---------
 
 - Next.js docs: https://nextjs.org/docs
-- For production, ensure environment variables and secrets are provided securely.
+- Docker docs: https://docs.docker.com/
+
