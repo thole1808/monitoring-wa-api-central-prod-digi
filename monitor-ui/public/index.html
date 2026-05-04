@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp API Monitor Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="background-animation"></div>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1><i class="fa-brands fa-whatsapp"></i> WA API Monitor</h1>
+                <p>Real-time status monitoring untuk WhatsApp Gateway API</p>
+            </div>
+            
+            <div class="control-panel">
+                <form id="monitorForm">
+                    <div class="input-group">
+                        <i class="fa-solid fa-key"></i>
+                        <input type="password" id="sshPassword" placeholder="Masukkan password SSH" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-phone"></i>
+                        <input type="text" id="targetNumber" placeholder="Nomor Tujuan WA (Opsional)" value="0895370034003">
+                    </div>
+                    <button type="submit" id="startBtn" class="btn-primary">
+                        <i class="fa-solid fa-play"></i> Start Monitor
+                    </button>
+                </form>
+            </div>
+        </header>
+
+        <main>
+            <div class="dashboard-stats">
+                <div class="stat-card" id="stat-total">
+                    <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
+                    <div class="stat-info">
+                        <h3>Total Services</h3>
+                        <span class="stat-value">7</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-success">
+                    <div class="stat-icon success-icon"><i class="fa-solid fa-check-circle"></i></div>
+                    <div class="stat-info">
+                        <h3>Berhasil</h3>
+                        <span class="stat-value" id="successCount">0</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-failed">
+                    <div class="stat-icon failed-icon"><i class="fa-solid fa-times-circle"></i></div>
+                    <div class="stat-info">
+                        <h3>Gagal</h3>
+                        <span class="stat-value" id="failedCount">0</span>
+                    </div>
+                </div>
+                <div class="stat-card" id="stat-delay">
+                    <div class="stat-icon delay-icon"><i class="fa-solid fa-exclamation-triangle"></i></div>
+                    <div class="stat-info">
+                        <h3>Delay / Proses</h3>
+                        <span class="stat-value" id="delayCount">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-console" id="statusConsole">
+                <p class="console-text"><i class="fa-solid fa-terminal"></i> System Ready. Masukkan password untuk memulai monitoring...</p>
+            </div>
+
+            <div class="services-grid" id="servicesGrid">
+                <!-- Service cards will be populated here -->
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
