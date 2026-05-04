@@ -15,6 +15,9 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install runtime utilities for SSH and health checks
+RUN apk add --no-cache openssh sshpass curl
+
 # Copy built output and production deps
 COPY --from=builder /app/ .
 

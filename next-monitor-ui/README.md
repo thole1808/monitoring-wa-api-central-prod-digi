@@ -43,6 +43,8 @@ docker build -t wa-next:latest -f next-monitor-ui/Dockerfile ./next-monitor-ui
 
 If you want `.env.local` included in the image build, keep the file in `next-monitor-ui/` before building. The Dockerfile will copy `.env.local` into the build context and use it during `npm run build`.
 
+For runtime SSH access, you still need to pass environment variables into the running container, for example with `--env-file .env.local`.
+
 Run the container (serve on host port 3000):
 
 ```bash
