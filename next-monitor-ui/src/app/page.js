@@ -207,16 +207,6 @@ export default function Home() {
                             )}
                             {isMonitoring ? 'Monitoring...' : 'Start Scan'}
                         </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                // manual refresh UI
-                                if (typeof window !== 'undefined') window.location.reload();
-                            }}
-                            className="self-start ml-2 hidden sm:inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-shadow shadow-sm"
-                        >
-                            Refresh UI
-                        </button>
                     </form>
 
                     {/* Connection banner */}
