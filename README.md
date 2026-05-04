@@ -1,6 +1,6 @@
-# WA API Digi Transaksi — WA API Central Monitor
+# WA API Central Monitor — Digi Transaksi Production
 
-Real-time status monitoring untuk WhatsApp Gateway API (WA API Digi Transaksi).
+Real-time status monitoring untuk WhatsApp Gateway API
 
 Tujuan:
 - Menyediakan monitoring terpadu (central) untuk API gateway WhatsApp.

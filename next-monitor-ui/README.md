@@ -1,4 +1,4 @@
-WA API Digi Transaksi — WA API Central Monitor
+WA API Central Monitor — Digi Transaksi Production
 
 Real-time status monitoring untuk WhatsApp Gateway API.
 
