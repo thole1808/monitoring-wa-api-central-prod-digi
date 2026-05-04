@@ -1,9 +1,10 @@
-This Next.js dashboard is adapted for WA Digi Transaksi Production — "WA API Central Monitor".
+WA API Digi Transaksi — WA API Central Monitor
+
+Real-time status monitoring untuk WhatsApp Gateway API.
 
 Purpose
 -------
 
-- Real-time status monitoring for the WhatsApp Gateway API (WA Digi Transaksi Production).
 - Display connection health, queue lengths, throughput, and basic error/alerting indicators.
 
 Getting started (development)

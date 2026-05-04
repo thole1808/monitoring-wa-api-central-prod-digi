@@ -1,7 +1,7 @@
 {
-  "name": "monitor-ui",
+  "name": "wa-api-digi-transaksi-monitor-ui",
   "version": "1.0.0",
-  "description": "",
+  "description": "WA API Central Monitor — Real-time status monitoring untuk WhatsApp Gateway API",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

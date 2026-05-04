@@ -1,5 +1,6 @@
 {
-  "name": "next-monitor-ui",
+  "name": "wa-api-digi-transaksi",
+  "description": "WA API Central Monitor — Real-time status monitoring untuk WhatsApp Gateway API",
   "version": "0.1.0",
   "private": true,
   "scripts": {
