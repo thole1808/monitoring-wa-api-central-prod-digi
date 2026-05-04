@@ -30,8 +30,13 @@ export default function Home() {
     const [retryDelay, setRetryDelay] = useState(2000);
     const reconnectTimerRef = useRef(null);
     const lastPortRef = useRef(null);
-    const [consoleMsg, setConsoleMsg] = useState('System Ready. Masukkan password untuk memulai monitoring...');
+    const [consoleMsg, setConsoleMsg] = useState('System Ready. Auto-monitoring disabled. Klik "Auto Monitor" untuk mulai...');
     const [stats, setStats] = useState({ success: 0, failed: 0, delay: 0 });
+    
+    // Auto-monitoring state
+    const [isAutoMonitoring, setIsAutoMonitoring] = useState(false);
+    const [autoInterval, setAutoInterval] = useState(30); // seconds
+    const autoTimerRef = useRef(null);
     
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
@@ -120,8 +125,34 @@ export default function Home() {
     useEffect(() => {
         return () => {
             if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
         };
     }, []);
+
+    // Auto-monitoring effect
+    useEffect(() => {
+        if (!isAutoMonitoring) {
+            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+            return;
+        }
+
+        // Start first monitoring immediately
+        if (!isMonitoring) {
+            startMonitoring(null, null);
+        }
+
+        // Set up interval for next monitoring cycle
+        if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+        autoTimerRef.current = setInterval(() => {
+            if (!isMonitoring) {
+                startMonitoring(null, null);
+            }
+        }, autoInterval * 1000);
+
+        return () => {
+            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
+        };
+    }, [isAutoMonitoring, autoInterval, isMonitoring]);
 
     const handleEvent = (event, data) => {
         if (event === 'status') {
@@ -162,7 +193,7 @@ export default function Home() {
             else setStats(s => ({ ...s, delay: s.delay + 1 }));
         }
         else if (event === 'done') {
-            setConsoleMsg(`Monitoring selesai. Total: ${data.total}, Berhasil: ${data.successCount}, Gagal: ${data.failedCount}, Delay: ${data.delayCount}`);
+            setConsoleMsg(`Monitoring selesai. Total: ${data.total}, Berhasil: ${data.successCount}, Gagal: ${data.failedCount}, Delay: ${data.delayCount}${isAutoMonitoring ? ` — Next scan in ${autoInterval}s...` : ''}`);
             setIsMonitoring(false);
         }
     };
@@ -224,10 +255,36 @@ export default function Home() {
                                 className="flex-1 w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm"
                             />
                         </div>
+
+                        <div className="flex gap-2 items-center">
+                            <input 
+                                type="number" 
+                                min="5" 
+                                max="300" 
+                                value={autoInterval}
+                                onChange={(e) => setAutoInterval(parseInt(e.target.value) || 30)}
+                                disabled={isAutoMonitoring}
+                                placeholder="Interval (s)" 
+                                className="w-20 bg-slate-900/50 border border-slate-700/50 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm disabled:opacity-50"
+                            />
                             <button 
+                                type="button" 
+                                onClick={() => setIsAutoMonitoring(!isAutoMonitoring)}
+                                className={`flex-none whitespace-nowrap flex items-center justify-center gap-2 text-white text-sm font-medium px-3 py-2.5 rounded-md transition-shadow shadow-sm ${
+                                    isAutoMonitoring 
+                                        ? 'bg-emerald-600 hover:bg-emerald-500' 
+                                        : 'bg-slate-700 hover:bg-slate-600'
+                                }`}
+                            >
+                                <div className={isAutoMonitoring ? "w-2 h-2 bg-white rounded-full animate-pulse" : "w-2 h-2 bg-slate-400 rounded-full"}></div>
+                                {isAutoMonitoring ? 'Auto: ON' : 'Auto: OFF'}
+                            </button>
+                        </div>
+                            
+                        <button 
                             type="submit" 
                             disabled={isMonitoring}
-                                className="self-start flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
+                                className="self-start flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-3 py-2.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
                         >
                             {isMonitoring ? (
                                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
