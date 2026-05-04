@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
     Server, 
     CheckCircle, 
@@ -26,6 +26,10 @@ export default function Home() {
     const [password, setPassword] = useState('');
     const [targetNumber, setTargetNumber] = useState('0895370034003');
     const [isMonitoring, setIsMonitoring] = useState(false);
+    const [isConnected, setIsConnected] = useState(false);
+    const [retryDelay, setRetryDelay] = useState(2000);
+    const reconnectTimerRef = useRef(null);
+    const lastPortRef = useRef(null);
     const [consoleMsg, setConsoleMsg] = useState('System Ready. Masukkan password untuk memulai monitoring...');
     const [stats, setStats] = useState({ success: 0, failed: 0, delay: 0 });
     
@@ -39,6 +43,8 @@ export default function Home() {
     const startMonitoring = async (e, port = null) => {
         if (e) e.preventDefault();
         setIsMonitoring(true);
+        setIsConnected(false);
+        lastPortRef.current = port;
         if (!port) setStats({ success: 0, failed: 0, delay: 0 });
         
         // Reset services
@@ -63,6 +69,12 @@ export default function Home() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ targetNumber, servicePort: port })
             });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            // connection established
+            setIsConnected(true);
+            setRetryDelay(2000);
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -92,9 +104,24 @@ export default function Home() {
             }
         } catch (err) {
             setConsoleMsg(`Connection error: ${err.message}`);
+            setIsConnected(false);
             setIsMonitoring(false);
+            // schedule reconnect with exponential backoff
+            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+            const delay = Math.min(retryDelay, 60000);
+            setConsoleMsg(`Disconnected. Retrying in ${Math.round(delay/1000)}s...`);
+            reconnectTimerRef.current = setTimeout(() => {
+                setRetryDelay(d => Math.min(60000, d * 2));
+                startMonitoring(null, lastPortRef.current);
+            }, delay);
         }
     };
+
+    useEffect(() => {
+        return () => {
+            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        };
+    }, []);
 
     const handleEvent = (event, data) => {
         if (event === 'status') {
@@ -180,7 +207,27 @@ export default function Home() {
                             )}
                             {isMonitoring ? 'Monitoring...' : 'Start Scan'}
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                // manual refresh UI
+                                if (typeof window !== 'undefined') window.location.reload();
+                            }}
+                            className="self-start ml-2 hidden sm:inline-flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-shadow shadow-sm"
+                        >
+                            Refresh UI
+                        </button>
                     </form>
+
+                    {/* Connection banner */}
+                    {isMonitoring && !isConnected ? (
+                        <div className="mt-3 p-3 rounded bg-amber-600/10 border border-amber-500/20 text-amber-300 text-sm flex items-center justify-between gap-3">
+                            <div>Disconnected — trying to reconnect...</div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => startMonitoring(null, lastPortRef.current)} className="bg-amber-500 hover:bg-amber-400 text-black px-2 py-1 rounded text-xs">Reconnect</button>
+                            </div>
+                        </div>
+                    ) : null}
                 </header>
 
                 {/* Stats Cards */}
