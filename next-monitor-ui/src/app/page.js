@@ -35,7 +35,7 @@ export default function Home() {
     
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
-            acc[s.port] = { status: 'IDLE', time: '-', log: 'Waiting to start...' };
+            acc[s.port] = { status: 'IDLE', time: '-', log: 'Waiting to start...', connectionStatus: 'IDLE', logs: [] };
             return acc;
         }, {})
     );
@@ -51,13 +51,13 @@ export default function Home() {
         if (port) {
             setServiceState(prev => ({
                 ...prev,
-                [port]: { status: 'IDLE', time: '-', log: 'Waiting to start...', message: '-' }
+                [port]: { status: 'IDLE', time: '-', log: 'Waiting to start...', message: '-', connectionStatus: 'CONNECTING', logs: [] }
             }));
             setConsoleMsg(`Connecting to API for port ${port}...`);
         } else {
             const resetState = {};
             SERVICES.forEach(s => {
-                resetState[s.port] = { status: 'IDLE', time: '-', log: 'Waiting to start...', message: '-' };
+                resetState[s.port] = { status: 'IDLE', time: '-', log: 'Waiting to start...', message: '-', connectionStatus: 'CONNECTING', logs: [] };
             });
             setServiceState(resetState);
             setConsoleMsg('Connecting to API...');
@@ -134,13 +134,27 @@ export default function Home() {
         else if (event === 'service_start') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { status: 'RUNNING', message: 'Sending Message...', time: data.time, log: 'Checking docker logs...' }
+                [data.port]: { 
+                    status: 'RUNNING', 
+                    message: 'Sending Message...', 
+                    time: data.time, 
+                    log: 'Checking docker logs...', 
+                    connectionStatus: 'CONNECTED',
+                    logs: [...(prev[data.port].logs || []), `[${new Date().toLocaleTimeString()}] Service started`]
+                }
             }));
         }
         else if (event === 'service_result') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { status: data.status, message: data.message, time: data.time || prev[data.port].time, log: data.detail || 'No detail available' }
+                [data.port]: { 
+                    status: data.status, 
+                    message: data.message, 
+                    time: data.time || prev[data.port].time, 
+                    log: data.detail || 'No detail available',
+                    connectionStatus: 'CONNECTED',
+                    logs: [...(prev[data.port].logs || []), `[${new Date().toLocaleTimeString()}] ${data.status}: ${data.message}`]
+                }
             }));
 
             if (data.status === 'SUCCESS') setStats(s => ({ ...s, success: s.success + 1 }));
@@ -160,6 +174,21 @@ export default function Home() {
             case 'FAILED': return 'bg-red-500/10 border-red-500/20 text-red-400 before:bg-red-500';
             case 'DELAY': return 'bg-amber-500/10 border-amber-500/20 text-amber-400 before:bg-amber-500';
             default: return 'bg-white/5 border-white/10 text-slate-400 before:bg-slate-700';
+        }
+    };
+
+    const getConnectionStatusBadge = (connStatus) => {
+        switch(connStatus) {
+            case 'CONNECTED': 
+                return { badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', icon: '🟢', label: 'Connected' };
+            case 'DISCONNECTED': 
+                return { badge: 'bg-red-500/20 text-red-300 border border-red-500/30', icon: '🔴', label: 'Disconnected' };
+            case 'CONNECTING': 
+                return { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', icon: '🟡', label: 'Connecting...' };
+            case 'ERROR': 
+                return { badge: 'bg-red-500/20 text-red-300 border border-red-500/30', icon: '❌', label: 'Error' };
+            default: 
+                return { badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30', icon: '⚪', label: 'Idle' };
         }
     };
 
@@ -299,6 +328,9 @@ export default function Home() {
                                                     </span>
                                                 ) : sState.status}
                                             </span>
+                                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${getConnectionStatusBadge(sState.connectionStatus).badge}`}>
+                                                {getConnectionStatusBadge(sState.connectionStatus).icon} {getConnectionStatusBadge(sState.connectionStatus).label}
+                                            </span>
                                             <button 
                                                 onClick={() => startMonitoring(null, service.port)}
                                                 disabled={isMonitoring}
@@ -323,6 +355,15 @@ export default function Home() {
                                     <div className="mt-4 p-3 bg-black/40 rounded-lg text-xs font-mono text-slate-400 h-20 overflow-y-auto break-all border border-slate-800/50 shadow-inner">
                                         {sState.log}
                                     </div>
+
+                                    {sState.logs && sState.logs.length > 0 && (
+                                        <div className="mt-3 p-2 bg-slate-900/50 rounded-lg text-xs font-mono text-slate-500 border border-slate-700/30 max-h-24 overflow-y-auto">
+                                            <div className="font-semibold text-slate-300 mb-1">Event Log:</div>
+                                            {sState.logs.map((log, idx) => (
+                                                <div key={idx} className="text-[10px] text-slate-400">{log}</div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         );
