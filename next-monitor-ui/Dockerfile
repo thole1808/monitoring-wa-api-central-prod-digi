@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package*.json ./
+COPY .env.local .env.local
 RUN npm ci --silent
 
 # Copy source and build

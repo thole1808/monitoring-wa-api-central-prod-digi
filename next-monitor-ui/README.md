@@ -41,6 +41,8 @@ Build the Docker image (example):
 docker build -t wa-next:latest -f next-monitor-ui/Dockerfile ./next-monitor-ui
 ```
 
+If you want `.env.local` included in the image build, keep the file in `next-monitor-ui/` before building. The Dockerfile will copy `.env.local` into the build context and use it during `npm run build`.
+
 Run the container (serve on host port 3000):
 
 ```bash
