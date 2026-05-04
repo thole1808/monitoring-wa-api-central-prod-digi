@@ -165,13 +165,13 @@ export default function Home() {
                                 value={targetNumber}
                                 onChange={(e) => setTargetNumber(e.target.value)}
                                 placeholder="Target Number" 
-                                className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm"
+                                className="flex-1 w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all backdrop-blur-sm"
                             />
                         </div>
-                        <button 
+                            <button 
                             type="submit" 
                             disabled={isMonitoring}
-                            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white font-medium px-6 py-2.5 rounded-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] disabled:shadow-none"
+                                className="self-start flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-3 py-1.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
                         >
                             {isMonitoring ? (
                                 <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
