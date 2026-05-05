@@ -119,6 +119,7 @@ export async function POST(req) {
 
                     try {
                         const { stdout } = await execPromise(`sshpass -e ssh -p 2222 -o StrictHostKeyChecking=no userwhatsapp@${HOST} "docker logs --tail 100 ${name} 2>/dev/null | tail -n 50"`, execOptions);
+                        const { stdout: errorStdout } = await execPromise(`sshpass -e ssh -p 2222 -o StrictHostKeyChecking=no userwhatsapp@${HOST} "docker logs ${name} 2>&1 | egrep -i \\"error\\" | tail -n 1 || true"`, execOptions);
                         
                         const lines = stdout.split('\\n');
                         for (const line of lines) {
@@ -129,6 +130,10 @@ export async function POST(req) {
                             if (line.match(/error|EOF|websocket|refused/i)) {
                                 errorMsg = line;
                             }
+                        }
+
+                        if (errorStdout.trim()) {
+                            errorMsg = errorStdout.trim();
                         }
 
                         if (success === 1) break;
