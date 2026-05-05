@@ -427,9 +427,9 @@ export default function Home() {
                             <div className="divide-y divide-slate-800/80">
                                 {errorLogs.map((log, idx) => (
                                     <div key={`${log.port}-${log.time}-${idx}`} className="p-3 hover:bg-red-500/5 transition-colors">
-                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
+                                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
                                             <span className="text-red-300 font-bold">{log.name}</span>
-                                            <span className="text-slate-500">:{log.port}</span>
+                                            <span className="text-slate-500">Port {log.port}</span>
                                             <span className="text-slate-500">{log.time}</span>
                                         </div>
                                         <div className="text-slate-300 break-all leading-relaxed">{log.line}</div>

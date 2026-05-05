@@ -32,6 +32,8 @@ const SERVICES = [
     { port: 8010, name: 'wa-api-purwodadi' }
 ];
 
+const SSH_OPTIONS = '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o GlobalKnownHostsFile=/dev/null -o LogLevel=ERROR';
+
 export async function GET() {
     return Response.json({
         status: 'ready',
@@ -79,13 +81,13 @@ export async function POST(req) {
             
             // Env config for sshpass
             const execOptions = {
-                env: { ...process.env, SSHPASS: password }
+                env: { ...process.env, SSHPASS: password, HOME: '/tmp' }
             };
 
             // Test SSH connection
             try {
                 sendEvent('status', { message: 'Menguji koneksi SSH...' });
-                await execPromise(`sshpass -e ssh -p 2222 -o StrictHostKeyChecking=no -o ConnectTimeout=5 userwhatsapp@${HOST} "echo OK"`, execOptions);
+                await execPromise(`sshpass -e ssh -p 2222 ${SSH_OPTIONS} -o ConnectTimeout=5 userwhatsapp@${HOST} "echo OK"`, execOptions);
                 sendEvent('status', { message: '✅ Login SSH berhasil' });
             } catch (err) {
                 sendEvent('error', { message: '❌ Login SSH gagal' });
@@ -118,8 +120,8 @@ export async function POST(req) {
                     await new Promise(r => setTimeout(r, 3000));
 
                     try {
-                        const { stdout } = await execPromise(`sshpass -e ssh -p 2222 -o StrictHostKeyChecking=no userwhatsapp@${HOST} "docker logs --tail 100 ${name} 2>/dev/null | tail -n 50"`, execOptions);
-                        const { stdout: errorStdout } = await execPromise(`sshpass -e ssh -p 2222 -o StrictHostKeyChecking=no userwhatsapp@${HOST} "docker logs ${name} 2>&1 | egrep -i \\"error\\" | tail -n 1 || true"`, execOptions);
+                        const { stdout } = await execPromise(`sshpass -e ssh -p 2222 ${SSH_OPTIONS} userwhatsapp@${HOST} "docker logs --tail 100 ${name} 2>/dev/null | tail -n 50"`, execOptions);
+                        const { stdout: errorStdout } = await execPromise(`sshpass -e ssh -p 2222 ${SSH_OPTIONS} userwhatsapp@${HOST} "docker logs ${name} 2>&1 | egrep -i \\"error\\" | tail -n 1 || true"`, execOptions);
                         
                         const lines = stdout.split('\\n');
                         for (const line of lines) {

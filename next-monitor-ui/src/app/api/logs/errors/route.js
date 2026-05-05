@@ -14,6 +14,19 @@ const SERVICES = [
     { port: 8010, name: 'wa-api-purwodadi' }
 ];
 
+const SSH_OPTIONS = [
+    '-o',
+    'StrictHostKeyChecking=no',
+    '-o',
+    'UserKnownHostsFile=/dev/null',
+    '-o',
+    'GlobalKnownHostsFile=/dev/null',
+    '-o',
+    'LogLevel=ERROR',
+    '-o',
+    'ServerAliveInterval=15'
+];
+
 function decryptPassword(encryptedText, secretKey) {
     try {
         const textParts = encryptedText.split(':');
@@ -66,14 +79,11 @@ export async function GET() {
                     'ssh',
                     '-p',
                     '2222',
-                    '-o',
-                    'StrictHostKeyChecking=no',
-                    '-o',
-                    'ServerAliveInterval=15',
+                    ...SSH_OPTIONS,
                     `userwhatsapp@${host}`,
                     remoteCommand
                 ], {
-                    env: { ...process.env, SSHPASS: password },
+                    env: { ...process.env, SSHPASS: password, HOME: '/tmp' },
                     stdio: ['ignore', 'pipe', 'pipe']
                 });
 
@@ -101,6 +111,7 @@ export async function GET() {
                 child.stderr.on('data', chunk => {
                     const message = chunk.toString().trim();
                     if (!message) return;
+                    if (/known hosts|permanently added|could not create directory/i.test(message)) return;
                     sendEvent('stream_error', { ...service, message });
                 });
 
