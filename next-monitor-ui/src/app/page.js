@@ -430,6 +430,13 @@ export default function Home() {
                                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1">
                                             <span className="text-red-300 font-bold">{log.name}</span>
                                             <span className="text-slate-500">Port {log.port}</span>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
+                                                log.source === 'history'
+                                                    ? 'bg-slate-700 text-slate-300'
+                                                    : 'bg-red-500/20 text-red-300'
+                                            }`}>
+                                                {log.source || 'live'}
+                                            </span>
                                             <span className="text-slate-500">{log.time}</span>
                                         </div>
                                         <div className="text-slate-300 break-all leading-relaxed">{log.line}</div>

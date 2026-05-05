@@ -27,6 +27,9 @@ const SSH_OPTIONS = [
     'ServerAliveInterval=15'
 ];
 
+const ERROR_HISTORY_TAIL = process.env.ERROR_LOG_HISTORY_TAIL || '5000';
+const ERROR_HISTORY_LIMIT = process.env.ERROR_LOG_HISTORY_LIMIT || '100';
+
 function decryptPassword(encryptedText, secretKey) {
     try {
         const textParts = encryptedText.split(':');
@@ -80,7 +83,10 @@ export async function GET() {
             });
 
             for (const service of SERVICES) {
-                const remoteCommand = `docker logs -f --tail 50 ${service.name} 2>&1 | egrep -i --line-buffered "error"`;
+                const remoteCommand = [
+                    `docker logs --tail ${ERROR_HISTORY_TAIL} ${service.name} 2>&1 | egrep -i "error" | tail -n ${ERROR_HISTORY_LIMIT} | sed "s/^/[history] /"`,
+                    `docker logs -f --tail 0 ${service.name} 2>&1 | egrep -i --line-buffered "error" | sed -u "s/^/[live] /"`
+                ].join('; ');
                 const child = spawn('sshpass', [
                     '-e',
                     'ssh',
@@ -106,10 +112,14 @@ export async function GET() {
                     for (const line of lines) {
                         const trimmed = line.trim();
                         if (!trimmed) continue;
+                        const sourceMatch = trimmed.match(/^\[(history|live)\]\s+(.*)$/);
+                        const source = sourceMatch?.[1] || 'live';
+                        const message = sourceMatch?.[2] || trimmed;
 
                         sendEvent('error_log', {
                             ...service,
-                            line: trimmed,
+                            line: message,
+                            source,
                             time: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
                         });
                     }
