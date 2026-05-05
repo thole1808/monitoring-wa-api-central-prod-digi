@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import {
     Server, 
     CheckCircle, 
     XCircle, 
     AlertTriangle,
-    Key,
     Phone,
     Play,
     TerminalSquare
@@ -23,20 +22,12 @@ const SERVICES = [
 ];
 
 export default function Home() {
-    const [password, setPassword] = useState('');
     const [targetNumber, setTargetNumber] = useState('0895370034003');
     const [isMonitoring, setIsMonitoring] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
-    const [retryDelay, setRetryDelay] = useState(2000);
-    const reconnectTimerRef = useRef(null);
     const lastPortRef = useRef(null);
-    const [consoleMsg, setConsoleMsg] = useState('System Ready. Auto-monitoring disabled. Klik "Auto Monitor" untuk mulai...');
+    const [consoleMsg, setConsoleMsg] = useState('Ready to start monitoring...');
     const [stats, setStats] = useState({ success: 0, failed: 0, delay: 0 });
-    
-    // Auto-monitoring state
-    const [isAutoMonitoring, setIsAutoMonitoring] = useState(false);
-    const [autoInterval, setAutoInterval] = useState(30); // seconds
-    const autoTimerRef = useRef(null);
     
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
@@ -79,7 +70,6 @@ export default function Home() {
 
             // connection established
             setIsConnected(true);
-            setRetryDelay(2000);
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -108,51 +98,11 @@ export default function Home() {
                 }
             }
         } catch (err) {
-            setConsoleMsg(`Connection error: ${err.message}`);
             setIsConnected(false);
             setIsMonitoring(false);
-            // schedule reconnect with exponential backoff
-            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-            const delay = Math.min(retryDelay, 60000);
-            setConsoleMsg(`Disconnected. Retrying in ${Math.round(delay/1000)}s...`);
-            reconnectTimerRef.current = setTimeout(() => {
-                setRetryDelay(d => Math.min(60000, d * 2));
-                startMonitoring(null, lastPortRef.current);
-            }, delay);
+            setConsoleMsg(`Connection error: ${err.message}. Auto scan dimatikan, klik Start Scan untuk mencoba lagi.`);
         }
     };
-
-    useEffect(() => {
-        return () => {
-            if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
-        };
-    }, []);
-
-    // Auto-monitoring effect
-    useEffect(() => {
-        if (!isAutoMonitoring) {
-            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
-            return;
-        }
-
-        // Start first monitoring immediately
-        if (!isMonitoring) {
-            startMonitoring(null, null);
-        }
-
-        // Set up interval for next monitoring cycle
-        if (autoTimerRef.current) clearInterval(autoTimerRef.current);
-        autoTimerRef.current = setInterval(() => {
-            if (!isMonitoring) {
-                startMonitoring(null, null);
-            }
-        }, autoInterval * 1000);
-
-        return () => {
-            if (autoTimerRef.current) clearInterval(autoTimerRef.current);
-        };
-    }, [isAutoMonitoring, autoInterval, isMonitoring]);
 
     const handleEvent = (event, data) => {
         if (event === 'status') {
@@ -193,7 +143,7 @@ export default function Home() {
             else setStats(s => ({ ...s, delay: s.delay + 1 }));
         }
         else if (event === 'done') {
-            setConsoleMsg(`Monitoring selesai. Total: ${data.total}, Berhasil: ${data.successCount}, Gagal: ${data.failedCount}, Delay: ${data.delayCount}${isAutoMonitoring ? ` — Next scan in ${autoInterval}s...` : ''}`);
+            setConsoleMsg(`Monitoring selesai. Total: ${data.total}, Berhasil: ${data.successCount}, Gagal: ${data.failedCount}, Delay: ${data.delayCount}`);
             setIsMonitoring(false);
         }
     };
@@ -242,7 +192,7 @@ export default function Home() {
                         <p className="text-slate-400 mt-2 text-xs sm:text-sm">Real-time status monitoring untuk WhatsApp Gateway API</p>
                     </div>
                     
-                    <form onSubmit={startMonitoring} className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                         <div className="relative group flex-1 sm:flex-none">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <Phone className="h-5 w-5 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
@@ -257,7 +207,8 @@ export default function Home() {
                         </div>
                             
                         <button 
-                            type="submit" 
+                            type="button"
+                            onClick={() => startMonitoring(null, null)}
                             disabled={isMonitoring}
                             className="flex-none whitespace-nowrap flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 text-white text-sm font-medium px-4 py-2.5 rounded-md transition-shadow shadow-sm disabled:opacity-60 disabled:shadow-none"
                         >
@@ -268,7 +219,7 @@ export default function Home() {
                             )}
                             {isMonitoring ? 'Monitoring...' : 'Start Scan'}
                         </button>
-                    </form>
+                    </div>
 
                     {/* Connection banner */}
                     {isMonitoring && !isConnected ? (

@@ -32,6 +32,14 @@ const SERVICES = [
     { port: 8010, name: 'wa-api-purwodadi' }
 ];
 
+export async function GET() {
+    return Response.json({
+        status: 'ready',
+        message: 'Monitor API ready. Scan hanya berjalan dari tombol Start Scan.',
+        services: SERVICES.map(({ port, name }) => ({ port, name }))
+    });
+}
+
 export async function POST(req) {
     const body = await req.json();
     const targetNumber = body.targetNumber || '0895370034003';
