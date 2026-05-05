@@ -60,11 +60,18 @@ export async function GET() {
 
     const encoder = new TextEncoder();
     const children = [];
+    let isStreamClosed = false;
 
     const stream = new ReadableStream({
         start(controller) {
             const sendEvent = (event, data) => {
-                controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+                if (isStreamClosed) return;
+
+                try {
+                    controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+                } catch {
+                    isStreamClosed = true;
+                }
             };
 
             sendEvent('status', {
@@ -115,13 +122,25 @@ export async function GET() {
                     sendEvent('stream_error', { ...service, message });
                 });
 
+                child.on('error', err => {
+                    sendEvent('stream_error', { ...service, message: err.message });
+                });
+
                 child.on('close', code => {
+                    if (isStreamClosed) return;
                     sendEvent('service_closed', { ...service, code });
                 });
             }
         },
         cancel() {
+            isStreamClosed = true;
+
             for (const child of children) {
+                child.stdout?.removeAllListeners();
+                child.stderr?.removeAllListeners();
+                child.removeAllListeners('close');
+                child.removeAllListeners('error');
+
                 if (!child.killed) child.kill('SIGTERM');
             }
         }
