@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
     Server, 
     CheckCircle, 
@@ -8,7 +8,9 @@ import {
     AlertTriangle,
     Phone,
     Play,
-    TerminalSquare
+    TerminalSquare,
+    Radio,
+    Trash2
 } from 'lucide-react';
 
 const SERVICES = [
@@ -28,6 +30,8 @@ export default function Home() {
     const lastPortRef = useRef(null);
     const [consoleMsg, setConsoleMsg] = useState('Ready to start monitoring...');
     const [stats, setStats] = useState({ success: 0, failed: 0, delay: 0 });
+    const [errorLogs, setErrorLogs] = useState([]);
+    const [errorStreamStatus, setErrorStreamStatus] = useState('CONNECTING');
     
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
@@ -35,6 +39,51 @@ export default function Home() {
             return acc;
         }, {})
     );
+
+    useEffect(() => {
+        const source = new EventSource('/api/logs/errors');
+
+        source.addEventListener('open', () => {
+            setErrorStreamStatus('CONNECTED');
+        });
+
+        source.addEventListener('status', () => {
+            setErrorStreamStatus('CONNECTED');
+        });
+
+        source.addEventListener('error_log', (event) => {
+            const data = JSON.parse(event.data);
+            setErrorLogs(prev => [data, ...prev].slice(0, 100));
+            setServiceState(prev => ({
+                ...prev,
+                [data.port]: {
+                    ...prev[data.port],
+                    status: prev[data.port].status === 'RUNNING' ? 'RUNNING' : 'FAILED',
+                    message: 'ERROR LOG',
+                    log: data.line,
+                    connectionStatus: 'CONNECTED',
+                    logs: [...(prev[data.port].logs || []), `[${data.time}] ERROR: ${data.line}`].slice(-20)
+                }
+            }));
+        });
+
+        source.addEventListener('stream_error', (event) => {
+            const data = JSON.parse(event.data);
+            setErrorLogs(prev => [{
+                ...data,
+                line: data.message,
+                time: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+            }, ...prev].slice(0, 100));
+        });
+
+        source.addEventListener('error', () => {
+            setErrorStreamStatus('DISCONNECTED');
+        });
+
+        return () => {
+            source.close();
+        };
+    }, []);
 
     const startMonitoring = async (e, port = null) => {
         if (e) e.preventDefault();
@@ -334,6 +383,61 @@ export default function Home() {
                 <div className="bg-slate-900/80 border border-slate-700/50 rounded-xl p-4 mb-8 font-mono text-sm text-slate-300 flex items-center gap-3 shadow-inner backdrop-blur-xl">
                     <TerminalSquare className="w-5 h-5 text-blue-400 flex-shrink-0" />
                     <span className="animate-pulse">{consoleMsg}</span>
+                </div>
+
+                {/* Realtime Error Logs */}
+                <div className="bg-slate-900/70 border border-red-500/20 rounded-xl mb-8 overflow-hidden backdrop-blur-xl shadow-lg">
+                    <div className="px-5 py-4 border-b border-slate-700/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-red-500/10 text-red-300 flex items-center justify-center">
+                                <Radio className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-100">Realtime Error Logs</h3>
+                                <p className="text-xs text-slate-400">docker logs -f service 2&gt;&amp;1 | egrep -i error</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider border ${
+                                errorStreamStatus === 'CONNECTED'
+                                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                                    : 'bg-red-500/10 text-red-300 border-red-500/30'
+                            }`}>
+                                {errorStreamStatus}
+                            </span>
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                                {errorLogs.length} Logs
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setErrorLogs([])}
+                                className="h-8 w-8 rounded-md bg-slate-800/80 hover:bg-red-600 border border-slate-700 hover:border-red-500 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
+                                title="Clear logs"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="h-72 overflow-y-auto bg-black/30 font-mono text-xs">
+                        {errorLogs.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-slate-500 px-4 text-center">
+                                Menunggu error log realtime. Panel ini tidak menjalankan scan WhatsApp.
+                            </div>
+                        ) : (
+                            <div className="divide-y divide-slate-800/80">
+                                {errorLogs.map((log, idx) => (
+                                    <div key={`${log.port}-${log.time}-${idx}`} className="p-3 hover:bg-red-500/5 transition-colors">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mb-1">
+                                            <span className="text-red-300 font-bold">{log.name}</span>
+                                            <span className="text-slate-500">:{log.port}</span>
+                                            <span className="text-slate-500">{log.time}</span>
+                                        </div>
+                                        <div className="text-slate-300 break-all leading-relaxed">{log.line}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Grid */}
