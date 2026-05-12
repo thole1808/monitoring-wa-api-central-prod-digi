@@ -55,6 +55,7 @@ export default function Home() {
     const [isReconnecting, setIsReconnecting] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [theme, setTheme] = useState('dark');
+    const [targetError, setTargetError] = useState(false);
     const logsPerPage = 10;
 
     const [serviceState, setServiceState] = useState(
@@ -79,6 +80,15 @@ export default function Home() {
         if (!text) return text;
         return text.replace(/\b(\d{1,3}\.\d{1,3})\.\d{1,3}\.\d{1,3}\b/g, '$1.***.***')
                    .replace(/:(\d{4,5})\b/g, ':****');
+    };
+
+    const validateTarget = () => {
+        if (!targetNumber?.trim()) {
+            setTargetError(true);
+            alert("⚠️ TARGET NUMBER IS REQUIRED!");
+            return false;
+        }
+        return true;
     };
 
     const getEmitCode = (line) => {
@@ -106,6 +116,8 @@ export default function Home() {
 
     const startMonitoring = async (e, port = null) => {
         if (e) e.preventDefault();
+        if (!validateTarget()) return;
+
         setIsMonitoring(true);
         setIsConnected(false);
         lastPortRef.current = port;
@@ -251,11 +263,25 @@ export default function Home() {
                             <input 
                                 type="text" 
                                 value={targetNumber}
-                                onChange={(e) => setTargetNumber(e.target.value)}
-                                className={`w-full sm:w-64 border rounded-2xl px-5 py-3 text-sm outline-none transition-all ${theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500 focus:bg-white' : 'bg-black/40 border-slate-700 text-white focus:border-blue-500'}`}
+                                onChange={(e) => {
+                                    setTargetNumber(e.target.value);
+                                    if (e.target.value.trim() !== '') setTargetError(false);
+                                }}
+                                className={`w-full sm:w-64 border rounded-2xl px-5 py-3 text-sm outline-none transition-all 
+                                    ${targetError ? 'border-rose-500 bg-rose-500/10 ring-4 ring-rose-500/20 animate-shake' : 
+                                      theme === 'light' ? 'bg-slate-50 border-slate-200 text-slate-900 focus:border-blue-500' : 'bg-black/40 border-slate-700 text-white focus:border-blue-500'}`}
                                 placeholder="TARGET_NUMBER"
                             />
+                            {targetError && <p className="absolute top-full left-2 mt-1 text-[10px] font-black text-rose-500 uppercase tracking-widest animate-bounce">Required!</p>}
                         </div>
+                        <button 
+                            onClick={() => startMonitoring()}
+                            disabled={isMonitoring}
+                            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg disabled:opacity-30 ${theme === 'light' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        >
+                            {isMonitoring ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                            EXECUTE_SCAN
+                        </button>
                         <button 
                             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                             className={`p-3 rounded-2xl border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-blue-500 shadow-sm' : 'bg-white/5 border-white/5 text-slate-400 hover:text-white'}`}
@@ -265,123 +291,81 @@ export default function Home() {
                     </div>
                 </header>
 
-                {/* Main Grid */}
+                <div className={`border rounded-2xl p-4 flex items-center gap-4 text-xs ${theme === 'light' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-blue-500/5 border-blue-500/10 text-blue-400'}`}>
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
+                    <span className="tracking-widest uppercase font-black">{consoleMsg}</span>
+                </div>
+
+                {/* Main Content Grid - REARRANGED ORDER */}
                 <div className="flex flex-col gap-8">
-                    {/* Node Maintenance */}
-                    <section className={`border rounded-3xl p-8 shadow-2xl transition-all ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#161b22] border-white/5'}`}>
-                        <div className="flex items-center gap-4 mb-10">
-                            <Settings2 className={`w-6 h-6 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
-                            <h3 className={`text-sm font-black uppercase tracking-[0.4em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Service Maintenance Node</h3>
+                    {/* 1. Anomaly Stream Section (NOW TOP) */}
+                    <section className={`border rounded-3xl overflow-hidden shadow-2xl transition-all ${theme === 'light' ? 'bg-white border-slate-200 shadow-slate-200/40' : 'bg-[#161b22] border-white/5'}`}>
+                        <div className={`px-8 py-6 border-b flex flex-col lg:flex-row justify-between items-center gap-6 ${theme === 'light' ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/10'}`}>
+                            <div className="flex items-center gap-4">
+                                <Radio className="w-5 h-5 text-blue-500 animate-pulse" />
+                                <div>
+                                    <h3 className={`text-xs font-black uppercase tracking-[0.3em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Anomaly_Stream</h3>
+                                    <p className="text-[10px] text-slate-500 font-bold">REALTIME_FILTER: ERROR_LOGS</p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <input 
+                                        type="text" 
+                                        placeholder="SEARCH_LOGS..."
+                                        value={logSearch}
+                                        onChange={(e) => setLogSearch(e.target.value)}
+                                        className={`border rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none w-full transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500' : 'bg-black/40 border-slate-800 text-slate-300 focus:border-blue-500'}`}
+                                    />
+                                </div>
+                                <button onClick={handleReconnectLogs} className={`p-2.5 rounded-xl border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-blue-500' : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-blue-400'}`}>
+                                    <RefreshCw className={`w-4 h-4 ${isReconnecting ? 'animate-spin' : ''}`} />
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                            {SERVICES.map(service => {
-                                const s = serviceState[service.port];
-                                const isOpRunning = !!s.currentOp && !s.opFinished;
-                                const isOpSuccess = s.opFinished;
 
-                                return (
-                                    <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] ${theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white shadow-md' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}`}>
-                                        <div className="flex justify-between items-center border-b border-slate-200/10 pb-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-2.5 h-2.5 rounded-full ${s.connectionStatus === 'CONNECTED' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
-                                                <span className={`font-black text-sm uppercase tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{service.name}</span>
-                                            </div>
-                                            <span className={`text-[9px] px-3 py-1 rounded-full font-black ${theme === 'light' ? 'bg-white text-slate-500 border border-slate-200' : 'bg-white/5 text-slate-500'}`}>PORT_{service.port}</span>
-                                        </div>
-
-                                        <div className="space-y-8">
-                                            {/* STEP 1: CLEANUP (COMPACT) */}
-                                            <div className="relative pl-10">
-                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>01</div>
-                                                <div className="mb-4">
-                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>CLEANUP PROJECT</h4>
-                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">STOP, REMOVE & RESET DATABASE</p>
-                                                </div>
-                                                <button 
-                                                    onClick={() => handleQuickCleanup(service.name, service.port)}
-                                                    disabled={isOpRunning}
-                                                    className={`w-full py-3.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]
-                                                        ${isOpRunning ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 cursor-wait' : 
-                                                          isOpSuccess ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' : 
-                                                          theme === 'light' ? 'bg-slate-900 text-white hover:bg-blue-600 border-transparent' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-blue-600 hover:text-white'}
-                                                    `}
-                                                >
-                                                    {isOpRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : isOpSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Zap className="w-4 h-4 fill-current" />}
-                                                    {s.currentOp || 'EXECUTE_CLEANUP'}
-                                                </button>
-                                            </div>
-
-                                            {/* STEP 2: UPGRADE */}
-                                            <div className="relative pl-10">
-                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>02</div>
-                                                <div className="mb-4">
-                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>UPGRADE KERNEL</h4>
-                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">BUILD IMAGE ALPHA-VERSION</p>
-                                                </div>
-                                                <button 
-                                                    onClick={() => runControlAction(service.name, service.port, 'build')}
-                                                    disabled={isControlling[`${service.name}-build`]}
-                                                    className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-emerald-500/10 hover:text-emerald-600' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
-                                                >
-                                                    {isControlling[`${service.name}-build`] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Hammer className="w-3.5 h-3.5" />}
-                                                    BUILD_ALPHA
-                                                </button>
-                                            </div>
-
-                                            {/* STEP 3: DEPLOY */}
-                                            <div className="relative pl-10">
-                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>03</div>
-                                                <div className="mb-4">
-                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>DEPLOY NODE</h4>
-                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">RUN CONTAINER & MONITOR</p>
-                                                </div>
-                                                <div className="flex flex-col gap-3">
-                                                    <button onClick={() => startMonitoring(null, service.port)} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
-                                                        <Play className="w-3.5 h-3.5 fill-current" /> RUN_NODE
-                                                    </button>
-                                                    <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
-                                                        <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Terminal Output */}
-                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-48 overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
-                                            {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
-                                                Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
-                                                    <div key={k} className="mb-5 last:mb-0">
-                                                        <div className="text-blue-500 font-black mb-2 flex items-center gap-2 uppercase tracking-widest text-[8px]">
-                                                            {k.split('-').pop()} {isControlling[k] && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
-                                                        </div>
-                                                        {logs.slice(-5).map((l, i) => {
-                                                            const waMatch = l.match(WA_LINK_REGEX);
-                                                            return (
-                                                                <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
-                                                                    {maskSensitives(l)}
-                                                                    {waMatch && (
-                                                                        <div className="mt-4 bg-white p-5 rounded-3xl border-4 border-blue-500 inline-block shadow-2xl scale-95 origin-left">
-                                                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waMatch[0])}`} className="w-48 h-48" />
-                                                                            <p className="text-black font-black text-center mt-3 text-[11px] tracking-widest uppercase">SCAN_AUTH_QR</p>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ))
-                                            ) : (
-                                                <div className="text-center py-10 opacity-30 italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        <div className="overflow-x-auto custom-scrollbar">
+                            <table className="w-full text-left min-w-[800px]">
+                                <thead>
+                                    <tr className={`text-[9px] uppercase font-black tracking-widest border-b ${theme === 'light' ? 'bg-slate-50 text-slate-400 border-slate-100' : 'bg-black/20 text-slate-500 border-white/5'}`}>
+                                        <th className="px-8 py-4">TIMESTAMP</th>
+                                        <th className="px-8 py-4 text-center">NODE</th>
+                                        <th className="px-8 py-4 text-center">PORT</th>
+                                        <th className="px-8 py-4">DATA_CONTENT</th>
+                                    </tr>
+                                </thead>
+                                <tbody className={`divide-y font-mono text-[10px] ${theme === 'light' ? 'divide-slate-100' : 'divide-white/5'}`}>
+                                    {paginatedLogs.length === 0 ? (
+                                        <tr><td colSpan="4" className="px-8 py-10 text-center text-slate-400 italic tracking-[0.2em]">NO_ANOMALIES_DETECTED</td></tr>
+                                    ) : (
+                                        paginatedLogs.map((log, index) => (
+                                            <tr key={index} className={`transition-colors group ${theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-white/[0.02]'}`}>
+                                                <td className="px-8 py-3 text-slate-500 whitespace-nowrap">{log.time}</td>
+                                                <td className="px-8 py-3 text-center"><span className="px-3 py-1 rounded-md font-black border uppercase text-[8px] bg-rose-500/10 text-rose-600 border-rose-500/20">{log.name}</span></td>
+                                                <td className="px-8 py-3 text-center text-slate-400">{log.port}</td>
+                                                <td className={`px-8 py-3 leading-relaxed transition-colors ${theme === 'light' ? 'text-slate-600 group-hover:text-slate-900' : 'text-slate-400 group-hover:text-slate-200'}`}>{maskSensitives(log.line)}</td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
+
+                        {totalPages > 1 && (
+                            <div className={`px-8 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-6 ${theme === 'light' ? 'bg-slate-50 border-slate-100' : 'bg-black/40 border-white/5'}`}>
+                                <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.3em]">
+                                    PAGE: {currentPage} / {totalPages} // TOTAL: {filteredLogs.length}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all ${theme === 'light' ? 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20'}`}>PREV</button>
+                                    <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all ${theme === 'light' ? 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20'}`}>NEXT</button>
+                                </div>
+                            </div>
+                        )}
                     </section>
 
-                    {/* Telemetry Summary Cards */}
+                    {/* 2. Telemetry Summary Cards (NOW MIDDLE) */}
                     <section className="space-y-6">
                         <div className="flex items-center gap-4 px-2">
                             <Radio className={`w-5 h-5 animate-pulse ${theme === 'light' ? 'text-blue-600' : 'text-blue-500'}`} />
@@ -428,8 +412,129 @@ export default function Home() {
                             })}
                         </div>
                     </section>
+
+                    {/* 3. Node Maintenance Section (NOW BOTTOM) */}
+                    <section className={`border rounded-3xl p-8 shadow-2xl transition-all ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#161b22] border-white/5'}`}>
+                        <div className="flex items-center gap-4 mb-10">
+                            <Settings2 className={`w-6 h-6 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
+                            <h3 className={`text-sm font-black uppercase tracking-[0.4em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Node_Maintenance_Center</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                            {SERVICES.map(service => {
+                                const s = serviceState[service.port];
+                                const isOpRunning = !!s.currentOp && !s.opFinished;
+                                const isOpSuccess = s.opFinished;
+
+                                return (
+                                    <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] ${theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white shadow-md' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}`}>
+                                        <div className="flex justify-between items-center border-b border-slate-200/10 pb-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-2.5 h-2.5 rounded-full ${s.connectionStatus === 'CONNECTED' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
+                                                <span className={`font-black text-sm uppercase tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{service.name}</span>
+                                            </div>
+                                            <span className={`text-[9px] px-3 py-1 rounded-full font-black ${theme === 'light' ? 'bg-white text-slate-500 border border-slate-200' : 'bg-white/5 text-slate-500'}`}>PORT_{service.port}</span>
+                                        </div>
+
+                                        <div className="space-y-8">
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>01</div>
+                                                <div className="mb-4">
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>CLEANUP PROJECT</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">STOP, RM & RESET DB</p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleQuickCleanup(service.name, service.port)}
+                                                    disabled={isOpRunning}
+                                                    className={`w-full py-3.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-sm
+                                                        ${isOpRunning ? 'bg-amber-500/20 border-amber-500/50 text-amber-500' : 
+                                                          isOpSuccess ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' : 
+                                                          theme === 'light' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-blue-600'}
+                                                    `}
+                                                >
+                                                    {isOpRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : isOpSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                                                    {s.currentOp || 'EXECUTE_CLEANUP'}
+                                                </button>
+                                            </div>
+
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>02</div>
+                                                <div className="mb-4">
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>UPGRADE KERNEL</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">BUILD IMAGE ALPHA-VERSION</p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => runControlAction(service.name, service.port, 'build')}
+                                                    disabled={isControlling[`${service.name}-build`]}
+                                                    className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:text-emerald-600' : 'bg-white/5 border-white/5 text-slate-400 hover:text-emerald-400'}`}
+                                                >
+                                                    <Hammer className="w-3.5 h-3.5" /> BUILD_ALPHA
+                                                </button>
+                                            </div>
+
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>03</div>
+                                                <div className="mb-4">
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>DEPLOY NODE</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">RUN CONTAINER & MONITOR</p>
+                                                </div>
+                                                <div className="flex flex-col gap-3">
+                                                    <button onClick={() => startMonitoring(null, service.port)} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+                                                        <Play className="w-3.5 h-3.5 fill-current" /> RUN_NODE
+                                                    </button>
+                                                    <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
+                                                        <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-48 overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
+                                            {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
+                                                Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
+                                                    <div key={k} className="mb-5 last:mb-0">
+                                                        <div className="text-blue-500 font-black mb-2 flex items-center gap-2 uppercase tracking-widest text-[8px]">
+                                                            {k.split('-').pop()} {isControlling[k] && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                                                        </div>
+                                                        {logs.slice(-5).map((l, i) => {
+                                                            const waMatch = l.match(WA_LINK_REGEX);
+                                                            return (
+                                                                <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
+                                                                    {maskSensitives(l)}
+                                                                    {waMatch && (
+                                                                        <div className="mt-4 bg-white p-5 rounded-3xl border-4 border-blue-500 inline-block shadow-2xl scale-95 origin-left">
+                                                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waMatch[0])}`} className="w-48 h-48" />
+                                                                            <p className="text-black font-black text-center mt-3 text-[11px] tracking-widest uppercase">SCAN_AUTH_QR</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-10 opacity-30 italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
                 </div>
             </div>
+            
+            {/* Shake animation styles */}
+            <style jsx global>{`
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-5px); }
+                    75% { transform: translateX(5px); }
+                }
+                .animate-shake {
+                    animation: shake 0.2s ease-in-out 0s 2;
+                }
+            `}</style>
         </div>
     );
 }
