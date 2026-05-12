@@ -23,7 +23,9 @@ import {
     ShieldAlert,
     CheckCircle2,
     Sun,
-    Moon
+    Moon,
+    Zap,
+    Loader2
 } from 'lucide-react';
 
 const SERVICES = [
@@ -57,7 +59,7 @@ export default function Home() {
 
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
-            acc[s.port] = { status: 'IDLE', message: '-', time: '-', log: 'READY', connectionStatus: 'IDLE', logs: [] };
+            acc[s.port] = { status: 'IDLE', message: '-', time: '-', log: 'READY', connectionStatus: 'IDLE', logs: [], currentOp: null, opFinished: false };
             return acc;
         }, {})
     );
@@ -173,17 +175,40 @@ export default function Home() {
         }
     };
 
+    const handleQuickCleanup = async (serviceName, port) => {
+        const updateOp = (op, finished = false) => setServiceState(prev => ({ 
+            ...prev, [port]: { ...prev[port], currentOp: op, opFinished: finished } 
+        }));
+
+        try {
+            updateOp('STOPPING...');
+            await runControlAction(serviceName, port, 'stop');
+            
+            updateOp('REMOVING...');
+            await runControlAction(serviceName, port, 'rm');
+            
+            updateOp('RESETTING_DB...');
+            await runControlAction(serviceName, port, 'reset_db');
+            
+            updateOp('CLEANUP_DONE', true);
+            setTimeout(() => updateOp(null, false), 3000);
+        } catch (err) {
+            updateOp('ERROR');
+            setTimeout(() => updateOp(null, false), 3000);
+        }
+    };
+
     const handleEvent = (event, data) => {
         if (event === 'status') setConsoleMsg(`LOG: ${data.message.toUpperCase()}`);
         else if (event === 'service_start') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { status: 'RUNNING', message: 'SENDING...', time: data.time, log: 'PROCESS_START', connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${data.time}] RUNNING`] }
+                [data.port]: { ...prev[data.port], status: 'RUNNING', message: 'SENDING...', time: data.time, log: 'PROCESS_START', connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${data.time}] RUNNING`] }
             }));
         } else if (event === 'service_result') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { status: data.status, message: data.message, time: data.time || '-', log: data.detail || '-', connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${data.time}] ${data.status}`] }
+                [data.port]: { ...prev[data.port], status: data.status, message: data.message, time: data.time || '-', log: data.detail || '-', connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${data.time}] ${data.status}`] }
             }));
             if (data.status === 'SUCCESS') setStats(s => ({ ...s, success: s.success + 1 }));
             else if (data.status === 'FAILED') setStats(s => ({ ...s, failed: s.failed + 1 }));
@@ -201,11 +226,10 @@ export default function Home() {
 
     return (
         <div className={`min-h-screen font-sans relative overflow-x-hidden p-4 sm:p-8 transition-colors duration-500 ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#0b0e14] text-slate-100'}`}>
-            {/* Enterprise Gradient Background */}
             <div className={`fixed inset-0 z-0 pointer-events-none transition-opacity duration-1000 ${theme === 'light' ? 'bg-gradient-to-br from-slate-50 via-white to-blue-50 opacity-100' : 'bg-gradient-to-br from-[#0d1117] via-[#0b0e14] to-[#010409] opacity-100'}`}></div>
             
             <div className="relative z-10 max-w-[1600px] mx-auto space-y-8">
-                {/* Header Section */}
+                {/* Header */}
                 <header className={`flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 backdrop-blur-md border p-8 rounded-3xl shadow-xl transition-all ${theme === 'light' ? 'bg-white/80 border-slate-200 shadow-slate-200/50' : 'bg-slate-900/40 border-white/5 shadow-black/50'}`}>
                     <div className="flex items-center gap-5">
                         <div className={`p-4 rounded-2xl border transition-all ${theme === 'light' ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-blue-500/10 border-blue-500/20 text-blue-400'}`}>
@@ -233,14 +257,6 @@ export default function Home() {
                             />
                         </div>
                         <button 
-                            onClick={() => startMonitoring()}
-                            disabled={isMonitoring}
-                            className={`px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center gap-3 shadow-lg disabled:opacity-30 ${theme === 'light' ? 'bg-slate-900 text-white hover:bg-blue-600' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
-                        >
-                            {isMonitoring ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                            EXECUTE_SCAN
-                        </button>
-                        <button 
                             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                             className={`p-3 rounded-2xl border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-blue-500 shadow-sm' : 'bg-white/5 border-white/5 text-slate-400 hover:text-white'}`}
                         >
@@ -249,192 +265,119 @@ export default function Home() {
                     </div>
                 </header>
 
-                {/* Telemetry Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {[
-                        { label: 'NODES_ONLINE', value: SERVICES.length, icon: Cpu, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-                        { label: 'THREAT_SCAN', value: isMonitoring ? 'ACTIVE' : 'IDLE', icon: ShieldAlert, color: isMonitoring ? 'text-rose-500' : 'text-slate-500', bg: isMonitoring ? 'bg-rose-500/10' : 'bg-slate-500/10' },
-                        { label: 'SUCCESS_OPS', value: stats.success, icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                        { label: 'FAILED_REPORTS', value: stats.failed, icon: AlertTriangle, color: 'text-rose-500', bg: 'bg-rose-500/10' }
-                    ].map((stat, i) => (
-                        <div key={i} className={`border rounded-3xl p-6 transition-all hover:translate-y-[-4px] ${theme === 'light' ? 'bg-white border-slate-200 shadow-md shadow-slate-200/50' : 'bg-[#161b22] border-white/5 shadow-xl'}`}>
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`p-3 rounded-2xl border ${theme === 'light' ? 'border-transparent' : 'border-white/5'} ${stat.bg} ${stat.color}`}>
-                                    <stat.icon className="w-5 h-5" />
-                                </div>
-                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{stat.label}</span>
-                            </div>
-                            <div className={`text-3xl font-black tracking-tighter ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{stat.value}</div>
-                        </div>
-                    ))}
-                </div>
-
-                <div className={`border rounded-2xl p-4 flex items-center gap-4 text-xs ${theme === 'light' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-blue-500/5 border-blue-500/10 text-blue-400'}`}>
-                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></div>
-                    <span className="tracking-widest uppercase font-black">{consoleMsg}</span>
-                </div>
-
-                {/* Main Content Grid */}
+                {/* Main Grid */}
                 <div className="flex flex-col gap-8">
-                    {/* Log Stream Section */}
-                    <section className={`border rounded-3xl overflow-hidden shadow-2xl transition-all ${theme === 'light' ? 'bg-white border-slate-200 shadow-slate-200/40' : 'bg-[#161b22] border-white/5'}`}>
-                        <div className={`px-8 py-6 border-b flex flex-col lg:flex-row justify-between items-center gap-6 ${theme === 'light' ? 'border-slate-100 bg-slate-50/50' : 'border-white/5 bg-black/10'}`}>
-                            <div className="flex items-center gap-4">
-                                <Radio className="w-5 h-5 text-blue-500 animate-pulse" />
-                                <div>
-                                    <h3 className={`text-xs font-black uppercase tracking-[0.3em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Anomaly_Stream</h3>
-                                    <p className="text-[10px] text-slate-500 font-bold">REALTIME_FILTER: ERROR_LOGS</p>
-                                </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                                <div className="relative w-full sm:w-64">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                    <input 
-                                        type="text" 
-                                        placeholder="SEARCH_LOGS..."
-                                        value={logSearch}
-                                        onChange={(e) => setLogSearch(e.target.value)}
-                                        className={`border rounded-xl pl-10 pr-4 py-2.5 text-xs outline-none w-full transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-900 focus:border-blue-500' : 'bg-black/40 border-slate-800 text-slate-300 focus:border-blue-500'}`}
-                                    />
-                                </div>
-                                <button onClick={handleReconnectLogs} className={`p-2.5 rounded-xl border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-blue-500' : 'bg-slate-800 border-slate-700 text-slate-500 hover:text-blue-400'}`}>
-                                    <RefreshCw className={`w-4 h-4 ${isReconnecting ? 'animate-spin' : ''}`} />
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full text-left min-w-[800px]">
-                                <thead>
-                                    <tr className={`text-[9px] uppercase font-black tracking-widest border-b ${theme === 'light' ? 'bg-slate-50 text-slate-400 border-slate-100' : 'bg-black/20 text-slate-500 border-white/5'}`}>
-                                        <th className="px-8 py-4">TIMESTAMP</th>
-                                        <th className="px-8 py-4 text-center">NODE</th>
-                                        <th className="px-8 py-4 text-center">PORT</th>
-                                        <th className="px-8 py-4">DATA_CONTENT</th>
-                                    </tr>
-                                </thead>
-                                <tbody className={`divide-y font-mono text-[10px] ${theme === 'light' ? 'divide-slate-100' : 'divide-white/5'}`}>
-                                    {paginatedLogs.length === 0 ? (
-                                        <tr><td colSpan="4" className="px-8 py-10 text-center text-slate-400 italic tracking-[0.2em]">NO_ANOMALIES_DETECTED</td></tr>
-                                    ) : (
-                                        paginatedLogs.map((log, index) => (
-                                            <tr key={index} className={`transition-colors group ${theme === 'light' ? 'hover:bg-slate-50' : 'hover:bg-white/[0.02]'}`}>
-                                                <td className="px-8 py-3 text-slate-500 whitespace-nowrap">{log.time}</td>
-                                                <td className="px-8 py-3 text-center"><span className="px-3 py-1 rounded-md font-black border uppercase text-[8px] bg-rose-500/10 text-rose-600 border-rose-500/20">{log.name}</span></td>
-                                                <td className="px-8 py-3 text-center text-slate-400">{log.port}</td>
-                                                <td className={`px-8 py-3 leading-relaxed transition-colors ${theme === 'light' ? 'text-slate-600 group-hover:text-slate-900' : 'text-slate-400 group-hover:text-slate-200'}`}>{maskSensitives(log.line)}</td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {totalPages > 1 && (
-                            <div className={`px-8 py-6 border-t flex flex-col sm:flex-row justify-between items-center gap-6 ${theme === 'light' ? 'bg-slate-50 border-slate-100' : 'bg-black/40 border-white/5'}`}>
-                                <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.3em]">
-                                    PAGE: {currentPage} / {totalPages} // TOTAL: {filteredLogs.length}
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1} className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all ${theme === 'light' ? 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20'}`}>PREV</button>
-                                    <button onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} disabled={currentPage === totalPages} className={`px-4 py-2 rounded-xl text-[9px] font-black tracking-widest uppercase transition-all ${theme === 'light' ? 'bg-white border border-slate-200 text-slate-400 hover:text-slate-900 shadow-sm' : 'bg-slate-800 text-slate-400 hover:text-white disabled:opacity-20'}`}>NEXT</button>
-                                </div>
-                            </div>
-                        )}
-                    </section>
-
-                    {/* Node Maintenance Section */}
+                    {/* Node Maintenance */}
                     <section className={`border rounded-3xl p-8 shadow-2xl transition-all ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#161b22] border-white/5'}`}>
                         <div className="flex items-center gap-4 mb-10">
-                            <div className={`p-3 rounded-2xl ${theme === 'light' ? 'bg-amber-50 text-amber-600' : 'bg-amber-500/10 text-amber-400'}`}>
-                                <Settings2 className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className={`text-sm font-black uppercase tracking-[0.4em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Node_Maintenance_Center</h3>
-                                <p className="text-[10px] text-slate-500 font-bold">CONTROL_CONTAINER_STATUS_AND_DEPLOYMENT</p>
-                            </div>
+                            <Settings2 className={`w-6 h-6 ${theme === 'light' ? 'text-blue-600' : 'text-blue-400'}`} />
+                            <h3 className={`text-sm font-black uppercase tracking-[0.4em] ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>Service Maintenance Node</h3>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                            {SERVICES.map(service => (
-                                <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] ${theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white hover:shadow-2xl shadow-slate-200/50' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}`}>
-                                    <div className="flex justify-between items-center border-b border-slate-200/10 pb-6">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.6)] animate-pulse"></div>
-                                            <span className={`font-black text-sm uppercase tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{service.name}</span>
-                                        </div>
-                                        <span className={`text-[9px] px-3 py-1 rounded-full font-black tracking-widest ${theme === 'light' ? 'bg-white text-slate-500 border border-slate-200' : 'bg-white/5 text-slate-500'}`}>PORT_{service.port}</span>
-                                    </div>
+                            {SERVICES.map(service => {
+                                const s = serviceState[service.port];
+                                const isOpRunning = !!s.currentOp && !s.opFinished;
+                                const isOpSuccess = s.opFinished;
 
-                                    <div className="space-y-8">
-                                        {[
-                                            { step: '01', title: 'CLEANUP', desc: 'STOP_&_RM_CONTAINER', actions: [
-                                                { id: 'stop', icon: Square, color: 'hover:bg-amber-500/20 hover:text-amber-500' },
-                                                { id: 'rm', icon: Trash2, color: 'hover:bg-rose-500/20 hover:text-rose-500' }
-                                            ]},
-                                            { step: '02', title: 'DB_SYNC', desc: 'RESET_SESSIONS', actions: [
-                                                { id: 'reset_db', icon: RefreshCw, color: 'hover:bg-blue-500/20 hover:text-blue-500' }
-                                            ]},
-                                            { step: '03', title: 'UPGRADE', desc: 'BUILD_IMAGE_ALPHA', actions: [
-                                                { id: 'build', icon: Hammer, color: 'hover:bg-emerald-500/20 hover:text-emerald-500' }
-                                            ]},
-                                            { step: '04', title: 'DEPLOY', desc: 'RUN_&_FETCH_LOGS', actions: [
-                                                { id: 'run', icon: Play, color: 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20 w-full' },
-                                                { id: 'get_logs', icon: TerminalSquare, color: 'hover:bg-slate-700 hover:text-white w-full' }
-                                            ]}
-                                        ].map((s, i) => (
-                                            <div key={i} className="relative pl-10">
-                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${theme === 'light' ? 'bg-white text-blue-600 border border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border border-slate-700'}`}>{s.step}</div>
+                                return (
+                                    <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] ${theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white shadow-md' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}`}>
+                                        <div className="flex justify-between items-center border-b border-slate-200/10 pb-6">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-2.5 h-2.5 rounded-full ${s.connectionStatus === 'CONNECTED' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>
+                                                <span className={`font-black text-sm uppercase tracking-tight ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>{service.name}</span>
+                                            </div>
+                                            <span className={`text-[9px] px-3 py-1 rounded-full font-black ${theme === 'light' ? 'bg-white text-slate-500 border border-slate-200' : 'bg-white/5 text-slate-500'}`}>PORT_{service.port}</span>
+                                        </div>
+
+                                        <div className="space-y-8">
+                                            {/* STEP 1: CLEANUP (COMPACT) */}
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>01</div>
                                                 <div className="mb-4">
-                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>{s.title}</h4>
-                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">{s.desc}</p>
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>CLEANUP PROJECT</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">STOP, REMOVE & RESET DATABASE</p>
                                                 </div>
-                                                <div className="flex gap-2 flex-wrap">
-                                                    {s.actions.map(act => (
-                                                        <button 
-                                                            key={act.id} 
-                                                            onClick={() => runControlAction(service.name, service.port, act.id)} 
-                                                            disabled={isControlling[`${service.name}-${act.id}`]} 
-                                                            className={`px-4 py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-20 flex items-center justify-center gap-3 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 ' + act.color : 'bg-white/5 border-white/5 text-slate-400 ' + act.color} ${act.id === 'run' || act.id === 'get_logs' ? 'w-full' : ''}`}
-                                                        >
-                                                            <act.icon className="w-3.5 h-3.5" /> {act.id}
-                                                        </button>
-                                                    ))}
+                                                <button 
+                                                    onClick={() => handleQuickCleanup(service.name, service.port)}
+                                                    disabled={isOpRunning}
+                                                    className={`w-full py-3.5 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 shadow-sm active:scale-[0.98]
+                                                        ${isOpRunning ? 'bg-amber-500/20 border-amber-500/50 text-amber-500 cursor-wait' : 
+                                                          isOpSuccess ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' : 
+                                                          theme === 'light' ? 'bg-slate-900 text-white hover:bg-blue-600 border-transparent' : 'bg-white/5 border-white/5 text-slate-300 hover:bg-blue-600 hover:text-white'}
+                                                    `}
+                                                >
+                                                    {isOpRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : isOpSuccess ? <CheckCircle2 className="w-4 h-4" /> : <Zap className="w-4 h-4 fill-current" />}
+                                                    {s.currentOp || 'EXECUTE_CLEANUP'}
+                                                </button>
+                                            </div>
+
+                                            {/* STEP 2: UPGRADE */}
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>02</div>
+                                                <div className="mb-4">
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>UPGRADE KERNEL</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">BUILD IMAGE ALPHA-VERSION</p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => runControlAction(service.name, service.port, 'build')}
+                                                    disabled={isControlling[`${service.name}-build`]}
+                                                    className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-emerald-500/10 hover:text-emerald-600' : 'bg-white/5 border-white/5 text-slate-400 hover:bg-emerald-500/20 hover:text-emerald-400'}`}
+                                                >
+                                                    {isControlling[`${service.name}-build`] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Hammer className="w-3.5 h-3.5" />}
+                                                    BUILD_ALPHA
+                                                </button>
+                                            </div>
+
+                                            {/* STEP 3: DEPLOY */}
+                                            <div className="relative pl-10">
+                                                <div className={`absolute left-0 top-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black border ${theme === 'light' ? 'bg-white text-blue-600 border-blue-100 shadow-sm' : 'bg-slate-800 text-blue-400 border-slate-700'}`}>03</div>
+                                                <div className="mb-4">
+                                                    <h4 className={`text-[10px] font-black uppercase tracking-widest ${theme === 'light' ? 'text-slate-900' : 'text-slate-100'}`}>DEPLOY NODE</h4>
+                                                    <p className="text-[8px] text-slate-500 font-bold uppercase">RUN CONTAINER & MONITOR</p>
+                                                </div>
+                                                <div className="flex flex-col gap-3">
+                                                    <button onClick={() => startMonitoring(null, service.port)} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+                                                        <Play className="w-3.5 h-3.5 fill-current" /> RUN_NODE
+                                                    </button>
+                                                    <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
+                                                        <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS
+                                                    </button>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
 
-                                    {/* Terminal Preview */}
-                                    <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-48 overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
-                                        {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
-                                            Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
-                                                <div key={k} className="mb-5 last:mb-0">
-                                                    <div className="text-blue-500 font-black mb-2 flex items-center gap-2 uppercase tracking-widest text-[8px]">
-                                                        {k.split('-').pop()} {isControlling[k] && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                                        {/* Terminal Output */}
+                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-48 overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
+                                            {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
+                                                Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
+                                                    <div key={k} className="mb-5 last:mb-0">
+                                                        <div className="text-blue-500 font-black mb-2 flex items-center gap-2 uppercase tracking-widest text-[8px]">
+                                                            {k.split('-').pop()} {isControlling[k] && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
+                                                        </div>
+                                                        {logs.slice(-5).map((l, i) => {
+                                                            const waMatch = l.match(WA_LINK_REGEX);
+                                                            return (
+                                                                <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
+                                                                    {maskSensitives(l)}
+                                                                    {waMatch && (
+                                                                        <div className="mt-4 bg-white p-5 rounded-3xl border-4 border-blue-500 inline-block shadow-2xl scale-95 origin-left">
+                                                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waMatch[0])}`} className="w-48 h-48" />
+                                                                            <p className="text-black font-black text-center mt-3 text-[11px] tracking-widest uppercase">SCAN_AUTH_QR</p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                    {logs.map((l, i) => {
-                                                        const waMatch = l.match(WA_LINK_REGEX);
-                                                        return (
-                                                            <div key={i} className="mb-1.5 leading-relaxed break-all opacity-80">
-                                                                {maskSensitives(l)}
-                                                                {waMatch && (
-                                                                    <div className="mt-4 bg-white p-5 rounded-3xl border-4 border-blue-500 inline-block shadow-2xl scale-95 origin-left">
-                                                                        <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waMatch[0])}`} className="w-48 h-48" />
-                                                                        <p className="text-black font-black text-center mt-3 text-[11px] tracking-widest uppercase">SCAN_AUTH_QR</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="text-center py-10 opacity-30 italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
-                                        )}
+                                                ))
+                                            ) : (
+                                                <div className="text-center py-10 opacity-30 italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </section>
 
