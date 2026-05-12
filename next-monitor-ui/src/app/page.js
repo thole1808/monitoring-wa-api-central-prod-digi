@@ -2,9 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-    Server, 
-    CheckCircle, 
-    XCircle, 
+    Server,
+    CheckCircle,
+    XCircle,
     AlertTriangle,
     Phone,
     Play,
@@ -40,7 +40,7 @@ export default function Home() {
     const [errorStreamStatus, setErrorStreamStatus] = useState('CONNECTING');
     const [controlLogs, setControlLogs] = useState({});
     const [isControlling, setIsControlling] = useState({});
-    
+
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
             acc[s.port] = { status: 'IDLE', time: '-', log: 'Waiting to start...', connectionStatus: 'IDLE', logs: [] };
@@ -53,8 +53,8 @@ export default function Home() {
     const [currentPage, setCurrentPage] = useState(1);
     const logsPerPage = 5;
 
-    const filteredLogs = errorLogs.filter(log => 
-        log.name?.toLowerCase().includes(logSearch.toLowerCase()) || 
+    const filteredLogs = errorLogs.filter(log =>
+        log.name?.toLowerCase().includes(logSearch.toLowerCase()) ||
         log.line?.toLowerCase().includes(logSearch.toLowerCase()) ||
         log.port?.toString().includes(logSearch)
     );
@@ -71,10 +71,10 @@ export default function Home() {
         if (!line) return null;
         const qrMatch = line.match(/https:\/\/wa\.me\/[^\s]+/i);
         if (qrMatch) return 'QR-LINK';
-        
+
         const emitMatch = line.match(/emitcode["\s:]+([^"\s,}\]]+)/i);
         if (emitMatch) return emitMatch[1].replace(/["']/g, '');
-        
+
         return null;
     };
 
@@ -109,7 +109,7 @@ export default function Home() {
         setIsConnected(false);
         lastPortRef.current = port;
         if (!port) setStats({ success: 0, failed: 0, delay: 0 });
-        
+
         if (port) {
             setServiceState(prev => ({
                 ...prev,
@@ -205,8 +205,8 @@ export default function Home() {
         else if (event === 'service_start') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { 
-                    status: 'RUNNING', message: 'Sending...', time: data.time, log: 'Running...', 
+                [data.port]: {
+                    status: 'RUNNING', message: 'Sending...', time: data.time, log: 'Running...',
                     connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${new Date().toLocaleTimeString()}] Started`]
                 }
             }));
@@ -214,7 +214,7 @@ export default function Home() {
         else if (event === 'service_result') {
             setServiceState(prev => ({
                 ...prev,
-                [data.port]: { 
+                [data.port]: {
                     status: data.status, message: data.message, time: data.time || prev[data.port].time, log: data.detail || '-',
                     connectionStatus: 'CONNECTED', logs: [...(prev[data.port].logs || []), `[${new Date().toLocaleTimeString()}] ${data.status}`]
                 }
@@ -226,7 +226,7 @@ export default function Home() {
     };
 
     const getStatusColors = (status) => {
-        switch(status) {
+        switch (status) {
             case 'RUNNING': return 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 before:bg-indigo-500';
             case 'SUCCESS': return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 before:bg-emerald-500';
             case 'FAILED': return 'bg-red-500/10 border-red-500/20 text-red-400 before:bg-red-500';
@@ -235,7 +235,7 @@ export default function Home() {
     };
 
     const getConnectionStatusBadge = (connStatus) => {
-        switch(connStatus) {
+        switch (connStatus) {
             case 'CONNECTED': return { badge: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30', icon: '🟢', label: 'Connected' };
             case 'CONNECTING': return { badge: 'bg-blue-500/20 text-blue-300 border border-blue-500/30', icon: '🟡', label: 'Connecting' };
             default: return { badge: 'bg-slate-500/20 text-slate-300 border border-slate-500/30', icon: '⚪', label: 'Idle' };
@@ -257,18 +257,18 @@ export default function Home() {
                         </h1>
                         <p className="text-slate-400 mt-2 text-sm">Production Environment v3.0</p>
                     </div>
-                    
+
                     <div className="flex gap-4 w-full lg:w-auto">
                         <div className="relative group flex-1 sm:flex-none">
                             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={targetNumber}
                                 onChange={(e) => setTargetNumber(e.target.value)}
                                 className="w-full bg-slate-900/50 border border-slate-700/50 rounded-lg pl-10 pr-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                             />
                         </div>
-                        <button 
+                        <button
                             onClick={() => startMonitoring()}
                             disabled={isMonitoring}
                             className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-md font-bold transition-all disabled:opacity-50 flex items-center gap-2"
@@ -317,8 +317,8 @@ export default function Home() {
                             <div className="flex items-center gap-3">
                                 <div className="relative">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         placeholder="Cari log..."
                                         value={logSearch}
                                         onChange={(e) => setLogSearch(e.target.value)}
@@ -386,7 +386,7 @@ export default function Home() {
                                     Showing {Math.min(filteredLogs.length, (currentPage - 1) * logsPerPage + 1)}-{Math.min(filteredLogs.length, currentPage * logsPerPage)} of {filteredLogs.length} logs
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button 
+                                    <button
                                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                         disabled={currentPage === 1}
                                         className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold uppercase disabled:opacity-30 disabled:cursor-not-allowed border border-slate-700 transition-all"
@@ -397,7 +397,7 @@ export default function Home() {
                                         {[...Array(Math.min(5, totalPages))].map((_, i) => {
                                             const p = i + 1; // Simplistic pagination, for 1600px width we can show more or keep it simple
                                             return (
-                                                <button 
+                                                <button
                                                     key={p}
                                                     onClick={() => setCurrentPage(p)}
                                                     className={`w-7 h-7 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${currentPage === p ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
@@ -408,7 +408,7 @@ export default function Home() {
                                         })}
                                         {totalPages > 5 && <span className="text-slate-600 px-1 text-[10px]">...</span>}
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                                         disabled={currentPage === totalPages}
                                         className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold uppercase disabled:opacity-30 disabled:cursor-not-allowed border border-slate-700 transition-all"
@@ -496,7 +496,16 @@ export default function Home() {
                                 <div key={service.port} className={`rounded-2xl bg-slate-900/40 border border-slate-800 p-5 backdrop-blur-xl ${getStatusColors(s.status)} before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 relative overflow-hidden`}>
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="font-bold text-slate-100">{service.name}</div>
-                                        <div className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${getConnectionStatusBadge(s.connectionStatus).badge}`}>{getConnectionStatusBadge(s.connectionStatus).label}</div>
+                                        <div className="flex flex-col items-end gap-2">
+                                            <div className={`text-[9px] font-bold px-2 py-1 rounded-full uppercase ${getConnectionStatusBadge(s.connectionStatus).badge}`}>{getConnectionStatusBadge(s.connectionStatus).label}</div>
+                                            <button
+                                                onClick={() => startMonitoring(null, service.port)}
+                                                disabled={isMonitoring}
+                                                className="bg-blue-600/20 hover:bg-blue-600 border border-blue-500/30 hover:border-blue-500 text-blue-300 hover:text-white px-2 py-1 rounded flex items-center gap-1 text-[9px] font-black uppercase transition-all disabled:opacity-50 shadow-sm"
+                                            >
+                                                <Play className="w-3 h-3" /> Test
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="space-y-1 text-[10px] text-slate-400">
                                         <div className="flex justify-between"><span>Status</span><span className="text-slate-200">{s.message}</span></div>
