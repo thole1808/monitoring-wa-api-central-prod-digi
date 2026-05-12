@@ -84,8 +84,8 @@ export async function GET() {
 
             for (const service of SERVICES) {
                 const remoteCommand = [
-                    `docker logs --tail ${ERROR_HISTORY_TAIL} ${service.name} 2>&1 | egrep -i "error" | tail -n ${ERROR_HISTORY_LIMIT} | sed "s/^/[history] /"`,
-                    `docker logs -f --tail 0 ${service.name} 2>&1 | egrep -i --line-buffered "error" | sed -u "s/^/[live] /"`
+                    `docker logs --tail ${ERROR_HISTORY_TAIL} ${service.name} 2>&1 | egrep -i "error|QR code|emit" | tail -n ${ERROR_HISTORY_LIMIT} | sed "s/^/[history] /"`,
+                    `docker logs -f --tail 0 ${service.name} 2>&1 | egrep -i --line-buffered "error|QR code|emit" | sed -u "s/^/[live] /"`
                 ].join('; ');
                 const child = spawn('sshpass', [
                     '-e',
