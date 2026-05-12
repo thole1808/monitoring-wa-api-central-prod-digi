@@ -485,6 +485,9 @@ export default function Home() {
                                                     <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
                                                         <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS
                                                     </button>
+                                                    <p className="text-[7px] text-blue-500 font-bold uppercase text-center tracking-tighter opacity-70 italic">
+                                                        💡 TIP: QR code will appear below if requested
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
@@ -513,7 +516,11 @@ export default function Home() {
                                                     </div>
                                                 ))
                                             ) : (
-                                                <div className="text-center py-10 opacity-30 italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
+                                                <div className="flex flex-col items-center justify-center h-full py-10 space-y-2 opacity-30">
+                                                    <TerminalSquare className="w-6 h-6" />
+                                                    <div className="text-center italic font-black text-[10px] tracking-[0.3em]">LISTENING_IDLE</div>
+                                                    <p className="text-[7px] font-bold uppercase tracking-widest">[ QR_WILL_APPEAR_HERE ]</p>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
