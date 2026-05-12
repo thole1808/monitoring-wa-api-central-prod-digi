@@ -54,17 +54,6 @@ export default function Home() {
         source.addEventListener('error_log', (event) => {
             const data = JSON.parse(event.data);
             setErrorLogs(prev => [data, ...prev].slice(0, 100));
-            setServiceState(prev => ({
-                ...prev,
-                [data.port]: {
-                    ...prev[data.port],
-                    status: prev[data.port].status === 'RUNNING' ? 'RUNNING' : 'FAILED',
-                    message: 'ERROR LOG',
-                    log: data.line,
-                    connectionStatus: 'CONNECTED',
-                    logs: [...(prev[data.port].logs || []), `[${data.time}] ERROR: ${data.line}`].slice(-20)
-                }
-            }));
         });
 
         source.addEventListener('stream_error', (event) => {
@@ -321,64 +310,6 @@ export default function Home() {
                     </div>
                 </div>
 
-                {/* Realtime Dashboard */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-                    {/* Live Services Status */}
-                    <div className="lg:col-span-2 bg-slate-900/60 border border-slate-700/50 rounded-xl p-5 backdrop-blur-xl shadow-lg">
-                        <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                            Live Service Status
-                        </h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {SERVICES.map(service => {
-                                const sState = serviceState[service.port];
-                                const statusColor = 
-                                    sState.status === 'SUCCESS' ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' :
-                                    sState.status === 'FAILED' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
-                                    sState.status === 'DELAY' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' :
-                                    sState.status === 'RUNNING' ? 'bg-blue-500/20 border-blue-500/50 text-blue-300' :
-                                    'bg-slate-500/20 border-slate-500/50 text-slate-300';
-                                
-                                const statusIcon = 
-                                    sState.status === 'SUCCESS' ? '✓' :
-                                    sState.status === 'FAILED' ? '✗' :
-                                    sState.status === 'DELAY' ? '⏳' :
-                                    sState.status === 'RUNNING' ? '◉' : '◯';
-                                
-                                return (
-                                    <div key={service.port} className={`border rounded-lg p-3 text-center transition-all ${statusColor}`}>
-                                        <div className="text-xl font-bold">{statusIcon}</div>
-                                        <p className="text-xs font-semibold mt-1 truncate">{service.name}</p>
-                                        <p className="text-[10px] opacity-75 mt-0.5">:{service.port}</p>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Last Update Info */}
-                    <div className="bg-slate-900/60 border border-slate-700/50 rounded-xl p-5 backdrop-blur-xl shadow-lg">
-                        <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                            Quick Stats
-                        </h3>
-                        <div className="space-y-3">
-                            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-                                <p className="text-[10px] text-emerald-300 uppercase font-bold">Success</p>
-                                <p className="text-2xl font-bold text-emerald-400">{stats.success}</p>
-                            </div>
-                            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
-                                <p className="text-[10px] text-red-300 uppercase font-bold">Failed</p>
-                                <p className="text-2xl font-bold text-red-400">{stats.failed}</p>
-                            </div>
-                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                                <p className="text-[10px] text-amber-300 uppercase font-bold">Delay</p>
-                                <p className="text-2xl font-bold text-amber-400">{stats.delay}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 {/* Console */}
                 <div className="bg-slate-900/80 border border-slate-700/50 rounded-xl p-4 mb-8 font-mono text-sm text-slate-300 flex items-center gap-3 shadow-inner backdrop-blur-xl">
                     <TerminalSquare className="w-5 h-5 text-blue-400 flex-shrink-0" />
@@ -448,7 +379,17 @@ export default function Home() {
                 </div>
 
                 {/* Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <div className="mb-8">
+                    <div className="px-5 py-4 bg-slate-900/60 border border-slate-700/50 rounded-t-xl flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-300 flex items-center justify-center">
+                            <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-100">Service Status Details</h3>
+                            <p className="text-xs text-slate-400">Monitoring status untuk setiap service</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 p-5 bg-slate-950/40 rounded-b-xl border border-t-0 border-slate-700/50">
                     {SERVICES.map(service => {
                         const sState = serviceState[service.port];
                         const colorClass = getStatusColors(sState.status);
@@ -520,6 +461,7 @@ export default function Home() {
                             </div>
                         );
                     })}
+                    </div>
                 </div>
             </div>
         </div>
