@@ -41,7 +41,7 @@ const SERVICES = [
 const WA_LINK_REGEX = /https:\/\/wa\.me\/[^\s]+/i;
 
 export default function Home() {
-    const [targetNumber, setTargetNumber] = useState('0895370034003');
+    const [targetNumber, setTargetNumber] = useState('');
     const [isMonitoring, setIsMonitoring] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const lastPortRef = useRef(null);
