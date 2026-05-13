@@ -38,7 +38,12 @@ const SERVICES = [
     { port: 8010, name: 'wa-api-purwodadi' }
 ];
 
-const WA_LINK_REGEX = /https:\/\/wa\.me\/[^\s]+/i;
+const WA_LINK_REGEX = /https:\/\/(wa\.me|www\.whatsapp\.com\/usephone)\/[^\s\u001b]+/i;
+
+const cleanAnsi = (text) => {
+    if (!text) return text;
+    return text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').trim();
+};
 
 export default function Home() {
     const [targetNumber, setTargetNumber] = useState('0895370034003');
@@ -613,27 +618,28 @@ export default function Home() {
                                                             {k.split('-').pop()} {isControlling[k] && <RefreshCw className="w-2.5 h-2.5 animate-spin" />}
                                                         </div>
                                                         {logs.slice(-5).map((l, i) => {
-                                                            const waMatch = l.match(WA_LINK_REGEX);
+                                                            const rawWaMatch = l.match(WA_LINK_REGEX);
+                                                            const waLink = rawWaMatch ? cleanAnsi(rawWaMatch[0]) : null;
                                                             return (
                                                                 <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
                                                                     {maskSensitives(l)}
-                                                                    {waMatch && (
+                                                                    {waLink && (
                                                                         <div className="mt-6 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
                                                                             <div className="bg-white p-6 rounded-[2.5rem] border-[6px] border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
-                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waMatch[0])}`} className="w-64 h-64 sm:w-80 sm:h-80" />
+                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waLink)}`} className="w-64 h-64 sm:w-80 sm:h-80" />
                                                                                 <p className="text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase">SCAN_AUTH_QR</p>
                                                                             </div>
                                                                             <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-[320px]">
                                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                                                                                     <button 
-                                                                                        onClick={() => handleSendQR(waMatch[0])}
+                                                                                        onClick={() => handleSendQR(waLink)}
                                                                                         className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all"
                                                                                     >
                                                                                         <Phone className="w-3 h-3" /> SEND_WA
                                                                                     </button>
                                                                                     <button 
                                                                                         onClick={() => {
-                                                                                            navigator.clipboard.writeText(waMatch[0]);
+                                                                                            navigator.clipboard.writeText(waLink);
                                                                                             alert("✅ LINK COPIED TO CLIPBOARD!");
                                                                                         }}
                                                                                         className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
@@ -642,11 +648,17 @@ export default function Home() {
                                                                                     </button>
                                                                                 </div>
                                                                                 <button 
-                                                                                    onClick={() => window.open(waMatch[0], '_blank')}
-                                                                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border border-dashed transition-all ${theme === 'light' ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'}`}
+                                                                                    onClick={() => window.open(waLink, '_blank')}
+                                                                                    className={`w-full flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border border-dashed transition-all ${theme === 'light' ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'}`}
                                                                                 >
-                                                                                    <Globe className="w-3 h-3" /> OPEN_DIRECT_LINK
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Globe className="w-3 h-3" /> OPEN_DIRECT_LINK
+                                                                                    </div>
+                                                                                    <span className="text-[7px] opacity-60 font-bold tracking-widest text-blue-500 italic">(📱 OPEN_ON_PHONE_ONLY)</span>
                                                                                 </button>
+                                                                                <p className="text-[7px] text-slate-500 text-center font-bold uppercase tracking-tight">
+                                                                                    Note: Open link on your phone to trigger scanner
+                                                                                </p>
                                                                                 <div className="flex items-center gap-2 text-blue-500 animate-pulse mt-2">
                                                                                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                                                                                     <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
