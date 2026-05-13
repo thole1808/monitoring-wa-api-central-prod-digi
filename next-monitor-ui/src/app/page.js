@@ -288,15 +288,23 @@ export default function Home() {
     const handleSendQR = async (qrLink) => {
         if (!validateTarget()) return;
         
-        const connectedNode = SERVICES.find(s => serviceState[s.port]?.connectionStatus === 'CONNECTED');
+        // Find a sender: Priority 1: Already Connected, Priority 2: Recently Deployed (Success), Priority 3: Any node that is not in Cleanup
+        const potentialSenders = SERVICES.filter(s => {
+            const state = serviceState[s.port];
+            return state?.connectionStatus === 'CONNECTED' || state?.finishedSteps?.run === true;
+        });
+
+        const connectedNode = potentialSenders[0] || SERVICES.find(s => serviceState[s.port]?.connectionStatus === 'CONNECTED');
         
         if (!connectedNode) {
-            alert("❌ NO CONNECTED NODE AVAILABLE TO SEND MESSAGE. Please connect at least one node first.");
+            // Fallback: If no node is "officially" connected, try the last one known to be working or just any node
+            // But we must at least have one node that was "RUN" successfully.
+            alert("❌ NO ACTIVE NODE DETECTED. Please ensure at least one node is RUNNING (Step 03) before sending QR.");
             return;
         }
 
         try {
-            setConsoleMsg(`SENDING_QR_VIA_${connectedNode.name.toUpperCase()}...`);
+            setConsoleMsg(`ATTEMPTING_SEND_VIA_${connectedNode.name.toUpperCase()}...`);
             const response = await fetch('/api/send-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -311,10 +319,10 @@ export default function Home() {
                 alert(`✅ QR SENT SUCCESSFULLY to ${targetNumber} via ${connectedNode.name}`);
                 setConsoleMsg("QR_SENT_SUCCESS");
             } else {
-                alert(`❌ FAILED TO SEND QR: ${data.error}`);
+                alert(`❌ FAILED TO SEND: Node ${connectedNode.name} returned error. Try another node if possible.`);
             }
         } catch (err) {
-            alert(`!! ERROR: ${err.message}`);
+            alert(`!! SEND_ERROR: ${err.message}`);
         }
     };
 
@@ -615,14 +623,31 @@ export default function Home() {
                                                                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waMatch[0])}`} className="w-64 h-64 sm:w-80 sm:h-80" />
                                                                                 <p className="text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase">SCAN_AUTH_QR</p>
                                                                             </div>
-                                                                            <div className="mt-4 flex flex-col items-center gap-3 w-full">
+                                                                            <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-[320px]">
+                                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                                                                                    <button 
+                                                                                        onClick={() => handleSendQR(waMatch[0])}
+                                                                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all"
+                                                                                    >
+                                                                                        <Phone className="w-3 h-3" /> SEND_WA
+                                                                                    </button>
+                                                                                    <button 
+                                                                                        onClick={() => {
+                                                                                            navigator.clipboard.writeText(waMatch[0]);
+                                                                                            alert("✅ LINK COPIED TO CLIPBOARD!");
+                                                                                        }}
+                                                                                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                                                                                    >
+                                                                                        <Search className="w-3 h-3" /> COPY_LINK
+                                                                                    </button>
+                                                                                </div>
                                                                                 <button 
-                                                                                    onClick={() => handleSendQR(waMatch[0])}
-                                                                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all"
+                                                                                    onClick={() => window.open(waMatch[0], '_blank')}
+                                                                                    className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border border-dashed transition-all ${theme === 'light' ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'}`}
                                                                                 >
-                                                                                    <Phone className="w-3.5 h-3.5" /> SEND_QR_TO_WA
+                                                                                    <Globe className="w-3 h-3" /> OPEN_DIRECT_LINK
                                                                                 </button>
-                                                                                <div className="flex items-center gap-2 text-blue-500 animate-pulse">
+                                                                                <div className="flex items-center gap-2 text-blue-500 animate-pulse mt-2">
                                                                                     <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                                                                                     <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
                                                                                 </div>
