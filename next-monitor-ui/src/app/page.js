@@ -479,8 +479,9 @@ export default function Home() {
                                                     <p className="text-[8px] text-slate-500 font-bold uppercase">RUN CONTAINER & MONITOR</p>
                                                 </div>
                                                 <div className="flex flex-col gap-3">
-                                                    <button onClick={() => startMonitoring(null, service.port)} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
-                                                        <Play className="w-3.5 h-3.5 fill-current" /> RUN_NODE
+                                                    <button onClick={() => runControlAction(service.name, service.port, 'run')} disabled={isControlling[`${service.name}-run`]} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50">
+                                                        {isControlling[`${service.name}-run`] ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                                                        {isControlling[`${service.name}-run`] ? 'RUNNING...' : 'RUN_NODE'}
                                                     </button>
                                                     <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
                                                         <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS
@@ -492,7 +493,7 @@ export default function Home() {
                                             </div>
                                         </div>
 
-                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-48 overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
+                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-[600px] overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
                                             {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
                                                 Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
                                                     <div key={k} className="mb-5 last:mb-0">
@@ -505,9 +506,15 @@ export default function Home() {
                                                                 <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
                                                                     {maskSensitives(l)}
                                                                     {waMatch && (
-                                                                        <div className="mt-4 bg-white p-5 rounded-3xl border-4 border-blue-500 inline-block shadow-2xl scale-95 origin-left">
-                                                                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waMatch[0])}`} className="w-48 h-48" />
-                                                                            <p className="text-black font-black text-center mt-3 text-[11px] tracking-widest uppercase">SCAN_AUTH_QR</p>
+                                                                        <div className="mt-6 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
+                                                                            <div className="bg-white p-6 rounded-[2.5rem] border-[6px] border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
+                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waMatch[0])}`} className="w-64 h-64 sm:w-80 sm:h-80" />
+                                                                                <p className="text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase">SCAN_AUTH_QR</p>
+                                                                            </div>
+                                                                            <div className="mt-4 flex items-center gap-2 text-blue-500 animate-pulse">
+                                                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                                                <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
+                                                                            </div>
                                                                         </div>
                                                                     )}
                                                                 </div>
