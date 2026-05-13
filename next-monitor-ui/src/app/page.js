@@ -60,7 +60,7 @@ export default function Home() {
 
     const [serviceState, setServiceState] = useState(
         SERVICES.reduce((acc, s) => {
-            acc[s.port] = { status: 'IDLE', message: '-', time: '-', log: 'READY', connectionStatus: 'IDLE', logs: [], currentOp: null, opFinished: false };
+            acc[s.port] = { status: 'IDLE', message: '-', time: '-', log: 'READY', connectionStatus: 'IDLE', logs: [], currentOp: null, opFinished: false, finishedSteps: {} };
             return acc;
         }, {})
     );
@@ -183,6 +183,12 @@ export default function Home() {
         setConflicts(prev => ({ ...prev, [serviceName]: false }));
         setControlLogs(prev => ({ ...prev, [key]: [`>> [${new Date().toLocaleTimeString()}] INITIATING_${action.toUpperCase()}...`] }));
 
+        // Clear finished status for this step when starting
+        setServiceState(prev => ({
+            ...prev,
+            [port]: { ...prev[port], finishedSteps: { ...prev[port].finishedSteps, [action]: false } }
+        }));
+
         try {
             const response = await fetch('/api/control', {
                 method: 'POST',
@@ -191,6 +197,8 @@ export default function Home() {
             });
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let hasError = false;
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -201,9 +209,17 @@ export default function Home() {
                         const parsed = JSON.parse(data[1]);
                         if (parsed.message) {
                             setControlLogs(prev => ({ ...prev, [key]: [...(prev[key] || []), `> ${parsed.message}`] }));
+                            if (parsed.isError) hasError = true;
                         }
                         if (parsed.isConflict) {
                             setConflicts(prev => ({ ...prev, [serviceName]: true }));
+                            hasError = true;
+                        }
+                        if (parsed.code === 0 && !hasError) {
+                            setServiceState(prev => ({
+                                ...prev,
+                                [port]: { ...prev[port], finishedSteps: { ...prev[port].finishedSteps, [action]: true } }
+                            }));
                         }
                     }
                 });
@@ -232,6 +248,10 @@ export default function Home() {
             await runControlAction(serviceName, port, 'reset_db');
             
             updateOp('CLEANUP_DONE', true);
+            setServiceState(prev => ({
+                ...prev,
+                [port]: { ...prev[port], finishedSteps: { ...prev[port].finishedSteps, cleanup: true } }
+            }));
             setTimeout(() => updateOp(null, false), 3000);
         } catch (err) {
             updateOp('ERROR');
@@ -540,9 +560,13 @@ export default function Home() {
                                                 <button 
                                                     onClick={() => runControlAction(service.name, service.port, 'build')}
                                                     disabled={isControlling[`${service.name}-build`]}
-                                                    className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:text-emerald-600' : 'bg-white/5 border-white/5 text-slate-400 hover:text-emerald-400'}`}
+                                                    className={`w-full py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 
+                                                        ${s.finishedSteps?.build ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600' : 
+                                                          theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:text-emerald-600' : 'bg-white/5 border-white/5 text-slate-400 hover:text-emerald-400'}
+                                                    `}
                                                 >
-                                                    <Hammer className="w-3.5 h-3.5" /> BUILD_ALPHA
+                                                    {isControlling[`${service.name}-build`] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : s.finishedSteps?.build ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Hammer className="w-3.5 h-3.5" />}
+                                                    {s.finishedSteps?.build ? 'BUILD_SUCCESS' : 'BUILD_ALPHA'}
                                                 </button>
                                             </div>
 
@@ -553,9 +577,15 @@ export default function Home() {
                                                     <p className="text-[8px] text-slate-500 font-bold uppercase">RUN CONTAINER & MONITOR</p>
                                                 </div>
                                                 <div className="flex flex-col gap-3">
-                                                    <button onClick={() => runControlAction(service.name, service.port, 'run')} disabled={isControlling[`${service.name}-run`]} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 disabled:opacity-50">
-                                                        {isControlling[`${service.name}-run`] ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                                                        {isControlling[`${service.name}-run`] ? 'RUNNING...' : 'RUN_NODE'}
+                                                    <button 
+                                                        onClick={() => runControlAction(service.name, service.port, 'run')} 
+                                                        disabled={isControlling[`${service.name}-run`]} 
+                                                        className={`w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50
+                                                            ${s.finishedSteps?.run ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'} text-white
+                                                        `}
+                                                    >
+                                                        {isControlling[`${service.name}-run`] ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : s.finishedSteps?.run ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                                                        {isControlling[`${service.name}-run`] ? 'RUNNING...' : s.finishedSteps?.run ? 'DEPLOY_SUCCESS' : 'RUN_NODE'}
                                                     </button>
                                                     <button onClick={() => runControlAction(service.name, service.port, 'get_logs')} className={`w-full py-2.5 rounded-xl border text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-400 hover:text-slate-900' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'}`}>
                                                         <TerminalSquare className="w-3.5 h-3.5" /> GET_LOGS

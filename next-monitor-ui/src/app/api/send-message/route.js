@@ -37,10 +37,13 @@ export async function POST(req) {
             return Response.json({ error: 'Auth failed' }, { status: 500 });
         }
 
+        // Clean ANSI escape codes from content to prevent shell breakage
+        const cleanContent = content.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').trim();
+
         // Format message for WhatsApp
         const payload = JSON.stringify({
             title: "QR_AUTH_REQUEST",
-            content: content,
+            content: cleanContent,
             destination: targetNumber
         });
 
