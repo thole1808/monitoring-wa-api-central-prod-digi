@@ -41,7 +41,7 @@ const SERVICES = [
 const WA_LINK_REGEX = /https:\/\/wa\.me\/[^\s]+/i;
 
 export default function Home() {
-    const [targetNumber, setTargetNumber] = useState('');
+    const [targetNumber, setTargetNumber] = useState('0895370034003');
     const [isMonitoring, setIsMonitoring] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const lastPortRef = useRef(null);
@@ -262,6 +262,39 @@ export default function Home() {
             case 'DISCONNECTED': return { badge: 'bg-rose-500/10 text-rose-600 border-rose-500/20', icon: '🔴', label: 'DISCONNECTED' };
             case 'CONNECTING': return { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: '🟡', label: 'CONNECTING' };
             default: return { badge: 'bg-slate-100 text-slate-500 border-slate-200', icon: '⚪', label: 'IDLE' };
+        }
+    };
+
+    const handleSendQR = async (qrLink) => {
+        if (!validateTarget()) return;
+        
+        const connectedNode = SERVICES.find(s => serviceState[s.port]?.connectionStatus === 'CONNECTED');
+        
+        if (!connectedNode) {
+            alert("❌ NO CONNECTED NODE AVAILABLE TO SEND MESSAGE. Please connect at least one node first.");
+            return;
+        }
+
+        try {
+            setConsoleMsg(`SENDING_QR_VIA_${connectedNode.name.toUpperCase()}...`);
+            const response = await fetch('/api/send-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    targetNumber,
+                    content: `🔔 *QR_AUTH_REQUEST*\n\nPlease scan this QR code to authenticate the service:\n\n${qrLink}`,
+                    senderPort: connectedNode.port
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert(`✅ QR SENT SUCCESSFULLY to ${targetNumber} via ${connectedNode.name}`);
+                setConsoleMsg("QR_SENT_SUCCESS");
+            } else {
+                alert(`❌ FAILED TO SEND QR: ${data.error}`);
+            }
+        } catch (err) {
+            alert(`!! ERROR: ${err.message}`);
         }
     };
 
@@ -552,9 +585,17 @@ export default function Home() {
                                                                                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waMatch[0])}`} className="w-64 h-64 sm:w-80 sm:h-80" />
                                                                                 <p className="text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase">SCAN_AUTH_QR</p>
                                                                             </div>
-                                                                            <div className="mt-4 flex items-center gap-2 text-blue-500 animate-pulse">
-                                                                                <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                                                                <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
+                                                                            <div className="mt-4 flex flex-col items-center gap-3 w-full">
+                                                                                <button 
+                                                                                    onClick={() => handleSendQR(waMatch[0])}
+                                                                                    className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg transition-all"
+                                                                                >
+                                                                                    <Phone className="w-3.5 h-3.5" /> SEND_QR_TO_WA
+                                                                                </button>
+                                                                                <div className="flex items-center gap-2 text-blue-500 animate-pulse">
+                                                                                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                                                                                    <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
+                                                                                </div>
                                                                             </div>
                                                                         </div>
                                                                     )}

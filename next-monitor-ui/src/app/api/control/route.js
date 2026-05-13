@@ -64,7 +64,8 @@ export async function POST(req) {
                     command = `cd ${baseDir} && rm -rf wasopingi.db && go get go.mau.fi/whatsmeow`;
                     break;
                 case 'build':
-                    command = `cd ${baseDir} && docker build --rm -t ${serviceName}:alpha .`;
+                    // Auto-fix golang version to 1.25 in Dockerfile before building
+                    command = `cd ${baseDir} && sed -i 's/golang:[0-9.]*/golang:1.25/g' Dockerfile && docker build --rm -t ${serviceName}:alpha .`;
                     break;
                 case 'run':
                     // Run container and then tail logs for a few seconds to catch QR code
