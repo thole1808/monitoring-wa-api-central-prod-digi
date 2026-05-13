@@ -45,6 +45,103 @@ const cleanAnsi = (text) => {
     return text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '').trim();
 };
 
+const QRSection = ({ waLink, theme, handleSendQR }) => {
+    const [elapsed, setElapsed] = useState(0);
+    const [isExpired, setIsExpired] = useState(false);
+    const [startTime, setStartTime] = useState('');
+
+    useEffect(() => {
+        setElapsed(0);
+        setIsExpired(false);
+        setStartTime(new Date().toLocaleTimeString());
+        const interval = setInterval(() => {
+            setElapsed(prev => {
+                const next = prev + 1;
+                if (next > 60) setIsExpired(true); // WhatsApp QR expires quickly, let's set it to 60s for safety
+                return next;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [waLink]);
+
+    const formatTime = (s) => {
+        const mins = Math.floor(s / 60);
+        const secs = s % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    return (
+        <div className="my-12 pb-8 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
+            <div className={`bg-white p-8 rounded-[3rem] border-[8px] shadow-[0_0_60px_rgba(59,130,246,0.4)] relative transition-all duration-500 ${isExpired ? 'border-rose-500 scale-95 opacity-80' : 'border-blue-500 hover:scale-[1.02]'}`}>
+                {/* Timer Badge */}
+                <div className={`absolute -top-6 -right-2 px-5 py-2.5 rounded-2xl text-[11px] font-black shadow-xl border-4 border-white animate-pulse transition-colors z-20 ${isExpired ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}`}>
+                    {isExpired ? '⚠️ QR_EXPIRED' : `⏱️ ACTIVE: ${formatTime(elapsed)}`}
+                </div>
+                
+                <div className="relative overflow-hidden rounded-2xl">
+                    <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waLink)}`} 
+                        className={`w-64 h-64 sm:w-80 sm:h-80 transition-all duration-700 ${isExpired ? 'grayscale blur-sm opacity-20' : ''}`} 
+                    />
+                    {isExpired && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[2px]">
+                            <div className="bg-rose-600 text-white px-4 py-2 rounded-xl shadow-2xl flex items-center gap-2 animate-bounce">
+                                <AlertTriangle className="w-4 h-4" />
+                                <span className="text-[10px] font-black uppercase">Expired</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <p className={`text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase transition-colors ${isExpired ? 'text-rose-600' : 'text-slate-900'}`}>
+                    {isExpired ? 'PLEASE_REFRESH_LOGS' : 'SCAN_AUTH_QR'}
+                </p>
+                <p className="text-[8px] text-center text-slate-400 font-bold mt-1 uppercase tracking-widest">
+                    DETECTED_AT: {startTime}
+                </p>
+            </div>
+
+            <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-[320px]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                    <button 
+                        onClick={() => handleSendQR(waLink)}
+                        className={`flex items-center justify-center gap-2 px-4 py-3 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all ${isExpired ? 'bg-rose-500 opacity-50 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-500 hover:scale-105'}`}
+                        disabled={isExpired}
+                    >
+                        <Phone className="w-3 h-3" /> SEND_WA
+                    </button>
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(waLink);
+                            alert("✅ LINK COPIED TO CLIPBOARD!");
+                        }}
+                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
+                    >
+                        <Search className="w-3 h-3" /> COPY_LINK
+                    </button>
+                </div>
+                <button 
+                    onClick={() => window.open(waLink, '_blank')}
+                    className={`w-full flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border border-dashed transition-all ${theme === 'light' ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'}`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Globe className="w-3 h-3" /> OPEN_DIRECT_LINK
+                    </div>
+                    <span className="text-[7px] opacity-60 font-bold tracking-widest text-blue-500 italic">(📱 OPEN_ON_PHONE_ONLY)</span>
+                </button>
+                <p className="text-[7px] text-slate-500 text-center font-bold uppercase tracking-tight">
+                    Note: Open link on your phone to trigger scanner
+                </p>
+                {!isExpired && (
+                    <div className="flex items-center gap-2 text-blue-500 animate-pulse mt-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 export default function Home() {
     const [targetNumber, setTargetNumber] = useState('0895370034003');
     const [isMonitoring, setIsMonitoring] = useState(false);
@@ -610,7 +707,7 @@ export default function Home() {
                                             </div>
                                         </div>
 
-                                        <div className={`rounded-2xl p-5 font-mono text-[9px] max-h-[600px] overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
+                                        <div className={`rounded-2xl p-5 pb-32 font-mono text-[9px] max-h-[600px] overflow-y-auto border shadow-inner ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-black/60 border-white/5 text-slate-500'}`}>
                                             {Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).length > 0 ? (
                                                 Object.entries(controlLogs).filter(([k]) => k.startsWith(service.name)).map(([k, logs]) => (
                                                     <div key={k} className="mb-5 last:mb-0">
@@ -624,47 +721,11 @@ export default function Home() {
                                                                 <div key={i} className="mb-1 opacity-80 break-all leading-relaxed">
                                                                     {maskSensitives(l)}
                                                                     {waLink && (
-                                                                        <div className="mt-6 flex flex-col items-center justify-center animate-in fade-in zoom-in duration-500">
-                                                                            <div className="bg-white p-6 rounded-[2.5rem] border-[6px] border-blue-500 shadow-[0_0_50px_rgba(59,130,246,0.3)]">
-                                                                                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(waLink)}`} className="w-64 h-64 sm:w-80 sm:h-80" />
-                                                                                <p className="text-black font-black text-center mt-4 text-[12px] tracking-[0.3em] uppercase">SCAN_AUTH_QR</p>
-                                                                            </div>
-                                                                            <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-[320px]">
-                                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-                                                                                    <button 
-                                                                                        onClick={() => handleSendQR(waLink)}
-                                                                                        className="flex items-center justify-center gap-2 px-4 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg transition-all"
-                                                                                    >
-                                                                                        <Phone className="w-3 h-3" /> SEND_WA
-                                                                                    </button>
-                                                                                    <button 
-                                                                                        onClick={() => {
-                                                                                            navigator.clipboard.writeText(waLink);
-                                                                                            alert("✅ LINK COPIED TO CLIPBOARD!");
-                                                                                        }}
-                                                                                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${theme === 'light' ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}
-                                                                                    >
-                                                                                        <Search className="w-3 h-3" /> COPY_LINK
-                                                                                    </button>
-                                                                                </div>
-                                                                                <button 
-                                                                                    onClick={() => window.open(waLink, '_blank')}
-                                                                                    className={`w-full flex flex-col items-center justify-center gap-1 px-4 py-3 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border border-dashed transition-all ${theme === 'light' ? 'border-blue-200 text-blue-600 hover:bg-blue-50' : 'border-blue-500/30 text-blue-400 hover:bg-blue-500/10'}`}
-                                                                                >
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <Globe className="w-3 h-3" /> OPEN_DIRECT_LINK
-                                                                                    </div>
-                                                                                    <span className="text-[7px] opacity-60 font-bold tracking-widest text-blue-500 italic">(📱 OPEN_ON_PHONE_ONLY)</span>
-                                                                                </button>
-                                                                                <p className="text-[7px] text-slate-500 text-center font-bold uppercase tracking-tight">
-                                                                                    Note: Open link on your phone to trigger scanner
-                                                                                </p>
-                                                                                <div className="flex items-center gap-2 text-blue-500 animate-pulse mt-2">
-                                                                                    <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                                                                                    <span className="text-[10px] font-black tracking-widest uppercase">Waiting for connection...</span>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
+                                                                        <QRSection 
+                                                                            waLink={waLink} 
+                                                                            theme={theme} 
+                                                                            handleSendQR={handleSendQR} 
+                                                                        />
                                                                     )}
                                                                 </div>
                                                             );
