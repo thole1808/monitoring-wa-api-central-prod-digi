@@ -98,19 +98,39 @@ export default function Home() {
         return emitMatch ? emitMatch[1].replace(/["']/g, '') : null;
     };
 
-    const handleReconnectLogs = () => {
-        setIsReconnecting(true);
-        setErrorLogs([]);
-        setTimeout(() => setIsReconnecting(false), 800);
-    };
+    const eventSourceRef = useRef(null);
 
-    useEffect(() => {
+    const connectToErrorStream = () => {
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+        }
+
         const source = new EventSource('/api/logs/errors');
+        eventSourceRef.current = source;
+
         source.addEventListener('error_log', (e) => {
             setErrorLogs(prev => [JSON.parse(e.data), ...prev].slice(0, 100));
             setErrorStreamStatus('CONNECTED');
         });
-        source.addEventListener('error', () => setErrorStreamStatus('DISCONNECTED'));
+
+        source.addEventListener('error', () => {
+            setErrorStreamStatus('DISCONNECTED');
+            // Auto-reconnect after 3 seconds if disconnected
+            setTimeout(connectToErrorStream, 3000);
+        });
+
+        return source;
+    };
+
+    const handleReconnectLogs = () => {
+        setIsReconnecting(true);
+        setErrorLogs([]);
+        connectToErrorStream();
+        setTimeout(() => setIsReconnecting(false), 800);
+    };
+
+    useEffect(() => {
+        const source = connectToErrorStream();
         return () => source.close();
     }, []);
 
@@ -155,9 +175,12 @@ export default function Home() {
         }
     };
 
+    const [conflicts, setConflicts] = useState({});
+
     const runControlAction = async (serviceName, port, action) => {
         const key = `${serviceName}-${action}`;
         setIsControlling(prev => ({ ...prev, [key]: true }));
+        setConflicts(prev => ({ ...prev, [serviceName]: false }));
         setControlLogs(prev => ({ ...prev, [key]: [`>> [${new Date().toLocaleTimeString()}] INITIATING_${action.toUpperCase()}...`] }));
 
         try {
@@ -176,7 +199,12 @@ export default function Home() {
                     const data = line.match(/data: (.*)/);
                     if (data) {
                         const parsed = JSON.parse(data[1]);
-                        setControlLogs(prev => ({ ...prev, [key]: [...(prev[key] || []), `> ${parsed.message}`] }));
+                        if (parsed.message) {
+                            setControlLogs(prev => ({ ...prev, [key]: [...(prev[key] || []), `> ${parsed.message}`] }));
+                        }
+                        if (parsed.isConflict) {
+                            setConflicts(prev => ({ ...prev, [serviceName]: true }));
+                        }
                     }
                 });
             }
@@ -192,6 +220,7 @@ export default function Home() {
             ...prev, [port]: { ...prev[port], currentOp: op, opFinished: finished } 
         }));
 
+        setConflicts(prev => ({ ...prev, [serviceName]: false }));
         try {
             updateOp('STOPPING...');
             await runControlAction(serviceName, port, 'stop');
@@ -427,7 +456,19 @@ export default function Home() {
                                 const isOpSuccess = s.opFinished;
 
                                 return (
-                                    <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] ${theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white shadow-md' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}`}>
+                                    <div key={service.port} className={`border rounded-3xl p-8 space-y-8 transition-all hover:translate-y-[-6px] relative overflow-hidden
+                                        ${conflicts[service.name] ? 'bg-rose-500/5 border-rose-500 ring-2 ring-rose-500/20' : 
+                                          theme === 'light' ? 'bg-slate-50 border-slate-200 hover:bg-white shadow-md' : 'bg-black/40 border-white/5 hover:border-blue-500/30 shadow-xl'}
+                                    `}>
+                                        {conflicts[service.name] && (
+                                            <div className="absolute inset-x-0 top-0 bg-rose-500 text-white text-[9px] font-black py-2 px-4 flex items-center justify-between animate-in slide-in-from-top duration-300">
+                                                <div className="flex items-center gap-2">
+                                                    <AlertTriangle className="w-3 h-3" />
+                                                    <span>CONFLICT DETECTED! PLEASE RUN CLEANUP (STEP 01)</span>
+                                                </div>
+                                                <XCircle className="w-3 h-3 cursor-pointer" onClick={() => setConflicts(prev => ({ ...prev, [service.name]: false }))} />
+                                            </div>
+                                        )}
                                         <div className="flex justify-between items-center border-b border-slate-200/10 pb-6">
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-2.5 h-2.5 rounded-full ${s.connectionStatus === 'CONNECTED' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></div>

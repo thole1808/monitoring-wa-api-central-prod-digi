@@ -94,16 +94,26 @@ export async function POST(req) {
                 env: { ...process.env, SSHPASS: password, HOME: '/tmp' }
             });
 
+            let fullOutput = '';
             child.stdout.on('data', (data) => {
-                sendEvent('log', { message: data.toString() });
+                const msg = data.toString();
+                fullOutput += msg;
+                sendEvent('log', { message: msg });
             });
 
             child.stderr.on('data', (data) => {
-                sendEvent('log', { message: data.toString(), isError: true });
+                const msg = data.toString();
+                fullOutput += msg;
+                sendEvent('log', { message: msg, isError: true });
             });
 
             child.on('close', (code) => {
-                sendEvent('done', { code, message: code === 0 ? 'Success' : `Failed with code ${code}` });
+                const isConflict = action === 'run' && (fullOutput.toLowerCase().includes('conflict') || fullOutput.toLowerCase().includes('already in use'));
+                sendEvent('done', { 
+                    code, 
+                    message: code === 0 ? 'Success' : `Failed with code ${code}`,
+                    isConflict
+                });
                 controller.close();
             });
         }
