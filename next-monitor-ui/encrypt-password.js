@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 
 // 1. Ganti 'PASSWORD_ANDA_DISINI' dengan password SSH asli Anda.
-const passwordAsli = '#LSTn071F@4202!';
+const passwordAsli = '';
 
 // 2. Tentukan kunci rahasia (bisa apa saja, disarankan panjang & unik)
 const encryptionKey = 'super_secret_key_12345';
